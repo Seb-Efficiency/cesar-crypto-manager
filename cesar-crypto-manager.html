@@ -185,6 +185,25 @@
         input::placeholder { color: var(--text-secondary); opacity: 0.5; }
         input[readonly] { opacity: 0.5; cursor: default; }
         .hint { font-size: 11px; color: var(--text-secondary); }
+        .calc-tag {
+            font-size: 10px; color: var(--gold);
+            background: rgba(201,150,62,.15);
+            padding: 1px 6px; border-radius: 10px;
+            font-weight: 600; text-transform: none; letter-spacing: 0;
+            display: none; margin-left: 4px;
+        }
+        .calc-tag.show { display: inline; }
+        input.calculated { border-color: rgba(201,150,62,.5); background: rgba(201,150,62,.04); }
+        .pnl-pos { color: var(--green); font-weight: 600; }
+        .pnl-neg { color: var(--red); font-weight: 600; }
+        .pnl-zero { color: var(--text-secondary); }
+        .price-badge {
+            font-size: 11px; color: var(--text-secondary);
+            background: var(--bg-tertiary);
+            padding: 2px 7px; border-radius: 5px;
+            font-variant-numeric: tabular-nums;
+        }
+        .last-update { font-size: 11px; color: var(--text-secondary); margin-left: 10px; }
 
         /* ── CONFIRM PANEL ── */
         .confirm-panel {
@@ -294,6 +313,35 @@
         }
         .setup-banner a { color: var(--gold); text-decoration: underline; cursor: pointer; }
 
+        /* ── SELL INLINE ── */
+        .sell-form-inner {
+            background: rgba(192,57,43,.05);
+            border-top: 1px solid rgba(192,57,43,.18);
+            padding: 14px 18px;
+        }
+        .pct-btns { display: flex; gap: 5px; margin-bottom: 6px; }
+        .pct-btn {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 3px 9px; border-radius: 5px;
+            cursor: pointer; font-size: 11px; font-weight: 600;
+            transition: all 0.15s;
+        }
+        .pct-btn:hover { border-color: var(--red); color: var(--red); }
+
+        /* ── QUICK BUY ── */
+        .quick-buy-panel {
+            background: rgba(39,174,96,.04);
+            border: 1px solid rgba(39,174,96,.2);
+            border-radius: 10px; padding: 16px;
+            margin-bottom: 16px; display: none;
+        }
+        .quick-buy-panel.open { display: block; }
+
+        /* ── MISC ── */
+        .btn-sm { padding: 7px 12px !important; font-size: 12px !important; }
+
         /* ── RESPONSIVE ── */
         @media (max-width: 700px) {
             .sidebar { width: 54px; }
@@ -341,7 +389,14 @@
                 <div class="ep"><code>GET /cesar-trading-positions</code><span>→ positions trading ouvertes</span></div>
                 <div class="ep"><code>POST /cesar-trading-buy</code><span>→ ouvrir une position trading</span></div>
                 <div class="ep"><code>POST /cesar-trading-sell</code><span>→ clôturer une position trading</span></div>
+                <div class="ep"><code>GET /cesar-trading-history</code><span>→ historique des positions clôturées</span></div>
             </div>
+        </div>
+        <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--border);">
+            <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Cryptos personnalisées</div>
+            <p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;line-height:1.6;">Si une de tes cryptos n'est pas reconnue, ajoute sa correspondance CoinGecko ici.<br>Format : <code style="color:var(--gold)">SYMBOLE:coingecko-id</code> (une par ligne)</p>
+            <textarea id="cfg-crypto-map" rows="4" style="width:100%;background:var(--bg-tertiary);border:1px solid var(--border);color:var(--text-primary);padding:10px;border-radius:8px;font-size:12px;font-family:monospace;resize:vertical;" placeholder="MYTOKEN:my-token-id&#10;RARETOKEN:rare-token-coingecko-id"></textarea>
+            <div class="hint" style="margin-top:4px;">Trouve l'ID sur coingecko.com → page de la crypto → URL : coingecko.com/en/coins/<strong>cet-id</strong></div>
         </div>
     </div>
 </div>
@@ -383,6 +438,9 @@
         </div>
         <div class="nav-group">
             <div class="nav-group-label">Trading</div>
+            <div class="nav-item" onclick="nav('trading-dash')">
+                <span class="nav-icon">📊</span><span>Dashboard</span>
+            </div>
             <div class="nav-item" onclick="nav('trading-pos')">
                 <span class="nav-icon">⚡</span><span>Positions</span>
             </div>
@@ -406,7 +464,10 @@
                         <div class="page-title">📊 Mon Portefeuille</div>
                         <div class="page-sub">Vue consolidée de tes positions DCA et Trading</div>
                     </div>
-                    <button class="btn-refresh" id="btn-rp" onclick="loadPortfolio()">🔄 Actualiser</button>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <button class="btn-refresh" id="btn-rp" onclick="loadPortfolio()">🔄 Actualiser</button>
+                        <span class="last-update" id="last-update"></span>
+                    </div>
                 </div>
             </div>
             <div class="stats-row">
@@ -427,8 +488,8 @@
                 <div class="card-title">📈 Positions DCA actives</div>
                 <div class="table-wrap">
                     <table>
-                        <thead><tr><th>Crypto</th><th>Quantité</th><th>Prix Moyen</th><th>Total Investi</th></tr></thead>
-                        <tbody id="tb-dca"><tr><td colspan="4"><div class="empty-state"><div class="ei">📭</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
+                        <thead><tr><th>Crypto</th><th>Quantité</th><th>Prix Moyen</th><th>Total Investi</th><th>Prix actuel</th><th>Valeur actuelle</th><th>P&amp;L</th></tr></thead>
+                        <tbody id="tb-dca"><tr><td colspan="7"><div class="empty-state"><div class="ei">📭</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -436,8 +497,8 @@
                 <div class="card-title">⚡ Positions Trading ouvertes</div>
                 <div class="table-wrap">
                     <table>
-                        <thead><tr><th>Code</th><th>Date</th><th>Crypto</th><th>Quantité</th><th>Prix Achat</th><th>Total $</th><th>Objectif</th></tr></thead>
-                        <tbody id="tb-trad"><tr><td colspan="7"><div class="empty-state"><div class="ei">📭</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
+                        <thead><tr><th>Code</th><th>Date</th><th>Crypto</th><th>Quantité</th><th>Prix Achat</th><th>Total $</th><th>Objectif</th><th>Prix actuel</th><th>Valeur actuelle</th><th>P&amp;L</th></tr></thead>
+                        <tbody id="tb-trad"><tr><td colspan="10"><div class="empty-state"><div class="ei">📭</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -461,17 +522,17 @@
                         <input type="date" id="bd-date" />
                     </div>
                     <div class="fg">
-                        <label>Quantité achetée</label>
-                        <input type="number" id="bd-qty" placeholder="0.5" step="any" min="0" />
+                        <label>Quantité <span class="calc-tag" id="bd-qty-tag"></span></label>
+                        <input type="number" id="bd-qty" placeholder="0.5" step="any" min="0" oninput="calcDCA('bd')" />
                     </div>
                     <div class="fg">
-                        <label>Montant total ($)</label>
-                        <input type="number" id="bd-amount" placeholder="1000" step="any" min="0" />
+                        <label>Montant total ($) <span class="calc-tag" id="bd-amount-tag"></span></label>
+                        <input type="number" id="bd-amount" placeholder="1000" step="any" min="0" oninput="calcDCA('bd')" />
                     </div>
                     <div class="fg">
-                        <label>Prix unitaire ($)</label>
-                        <input type="number" id="bd-price" placeholder="2000" step="any" min="0" />
-                        <div class="hint">Prix de la crypto au moment de l'achat</div>
+                        <label>Prix unitaire ($) <span class="calc-tag" id="bd-price-tag"></span></label>
+                        <input type="number" id="bd-price" placeholder="2000" step="any" min="0" oninput="calcDCA('bd')" />
+                        <div class="hint">Remplis 2 des 3 champs — le 3ᵉ est calculé automatiquement</div>
                     </div>
                 </div>
                 <div class="confirm-panel" id="cp-buy-dca">
@@ -503,16 +564,17 @@
                         <input type="date" id="sd-date" />
                     </div>
                     <div class="fg">
-                        <label>Quantité vendue</label>
-                        <input type="number" id="sd-qty" placeholder="0.3" step="any" min="0" />
+                        <label>Quantité <span class="calc-tag" id="sd-qty-tag"></span></label>
+                        <input type="number" id="sd-qty" placeholder="0.3" step="any" min="0" oninput="calcDCA('sd')" />
                     </div>
                     <div class="fg">
-                        <label>Montant total ($)</label>
-                        <input type="number" id="sd-amount" placeholder="700" step="any" min="0" />
+                        <label>Montant total ($) <span class="calc-tag" id="sd-amount-tag"></span></label>
+                        <input type="number" id="sd-amount" placeholder="700" step="any" min="0" oninput="calcDCA('sd')" />
                     </div>
                     <div class="fg">
-                        <label>Prix de vente ($)</label>
-                        <input type="number" id="sd-price" placeholder="2333" step="any" min="0" />
+                        <label>Prix de vente ($) <span class="calc-tag" id="sd-price-tag"></span></label>
+                        <input type="number" id="sd-price" placeholder="2333" step="any" min="0" oninput="calcDCA('sd')" />
+                        <div class="hint">Remplis 2 des 3 champs — le 3ᵉ est calculé automatiquement</div>
                     </div>
                 </div>
                 <div class="confirm-panel" id="cp-sell-dca">
@@ -526,6 +588,62 @@
             </div>
         </div>
 
+        <!-- ══ TRADING DASHBOARD ══ -->
+        <div class="page" id="page-trading-dash">
+            <div class="page-header">
+                <div class="page-header-row">
+                    <div>
+                        <div class="page-title">📊 Dashboard Trading</div>
+                        <div class="page-sub">Performance globale de ta stratégie trading</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <button class="btn-refresh" id="btn-rtd" onclick="loadTradingDash()">🔄 Actualiser</button>
+                        <span class="last-update" id="last-update-dash"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="stats-row" style="grid-template-columns:repeat(auto-fit,minmax(155px,1fr))">
+                <div class="stat-card">
+                    <div class="stat-label">Positions ouvertes</div>
+                    <div class="stat-val muted" id="td-open">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total investi</div>
+                    <div class="stat-val gold" id="td-invested">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Valeur actuelle</div>
+                    <div class="stat-val muted" id="td-value">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">P&L latent</div>
+                    <div class="stat-val muted" id="td-pnl">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">P&L réalisé</div>
+                    <div class="stat-val muted" id="td-realized">—</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">⚡ Positions ouvertes</div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Code</th><th>Date</th><th>Crypto</th><th>Investi</th><th>Prix actuel</th><th>Valeur</th><th>P&amp;L</th><th>Objectif</th></tr></thead>
+                        <tbody id="td-tb-open"><tr><td colspan="8"><div class="empty-state"><div class="ei">📭</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">📋 Historique des transactions</div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Code</th><th>Crypto</th><th>Date achat</th><th>Date vente</th><th>Investi</th><th>Revenu</th><th>P&amp;L $</th><th>P&amp;L %</th></tr></thead>
+                        <tbody id="td-tb-hist"><tr><td colspan="8"><div class="empty-state"><div class="ei">📋</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- ══ TRADING POSITIONS ══ -->
         <div class="page" id="page-trading-pos">
             <div class="page-header">
@@ -534,14 +652,54 @@
                         <div class="page-title">⚡ Positions Trading</div>
                         <div class="page-sub">Toutes tes positions ouvertes</div>
                     </div>
-                    <button class="btn-refresh" id="btn-rtp" onclick="loadTradingPos()">🔄 Actualiser</button>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <button class="btn btn-success btn-sm" onclick="toggleQuickBuy()">🚀 Nouvel achat</button>
+                        <button class="btn-refresh" id="btn-rtp" onclick="loadTradingPos()">🔄 Actualiser</button>
+                    </div>
                 </div>
             </div>
+
+            <!-- Quick buy panel -->
+            <div class="quick-buy-panel" id="quick-buy-panel">
+                <div style="font-size:12px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px">🚀 Achat rapide</div>
+                <div class="form-grid">
+                    <div class="fg">
+                        <label>Crypto</label>
+                        <input type="text" id="qb-crypto" placeholder="BTC, ETH, SOL…" oninput="this.value=this.value.toUpperCase()">
+                    </div>
+                    <div class="fg">
+                        <label>Date d'achat</label>
+                        <input type="date" id="qb-date">
+                    </div>
+                    <div class="fg">
+                        <label>Quantité <span class="calc-tag" id="qb-qty-tag"></span></label>
+                        <input type="number" id="qb-qty" placeholder="0.5" step="any" min="0" oninput="calcQuickBuy()">
+                    </div>
+                    <div class="fg">
+                        <label>Total ($) <span class="calc-tag" id="qb-total-tag"></span></label>
+                        <input type="number" id="qb-total" placeholder="1000" step="any" min="0" oninput="calcQuickBuy()">
+                    </div>
+                    <div class="fg">
+                        <label>Prix unitaire ($) <span class="calc-tag" id="qb-price-tag"></span></label>
+                        <input type="number" id="qb-price" placeholder="50000" step="any" min="0" oninput="calcQuickBuy()">
+                        <div class="hint">2 des 3 champs suffisent</div>
+                    </div>
+                    <div class="fg">
+                        <label>Objectif (%)</label>
+                        <input type="number" id="qb-target" placeholder="10" step="any" min="0">
+                    </div>
+                </div>
+                <div class="form-actions" style="margin-top:14px;padding-top:14px">
+                    <button class="btn btn-outline" onclick="toggleQuickBuy()">Annuler</button>
+                    <button class="btn btn-primary" id="qb-submit" onclick="handleQuickBuy()">🚀 Ouvrir la position</button>
+                </div>
+            </div>
+
             <div class="card">
                 <div class="table-wrap">
                     <table>
-                        <thead><tr><th>Code</th><th>Date</th><th>Crypto</th><th>Quantité</th><th>Prix Achat</th><th>Total $</th><th>Objectif</th><th>Statut</th></tr></thead>
-                        <tbody id="tb-tpos"><tr><td colspan="8"><div class="empty-state"><div class="ei">📭</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
+                        <thead><tr><th>Code</th><th>Date</th><th>Crypto</th><th>Qté</th><th>Prix achat</th><th>Total $</th><th>Objectif</th><th>Prix actuel</th><th>Valeur</th><th>P&amp;L</th><th>Action</th></tr></thead>
+                        <tbody id="tb-tpos"><tr><td colspan="11"><div class="empty-state"><div class="ei">📭</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -635,16 +793,77 @@
 // CONFIG
 // ══════════════════════════════════════════
 const CFG = {
-    get url()  { return (localStorage.getItem('cesar_url')  || '').replace(/\/$/, ''); },
-    get key()  { return localStorage.getItem('cesar_key')  || ''; },
+    url: 'https://n8n.srv967472.hstgr.cloud/webhook/cesar-portfolio',   // ← remplace par ton URL n8n (sans slash final)
+    key: 'cesar-crypto-manager-xsb66asA78KLmc34-secret',              // ← remplace par ton bearer token
     ep: {
         portfolio:        '/cesar-portfolio',
         dca:              '/cesar-dca',
         tradingPositions: '/cesar-trading-positions',
         tradingBuy:       '/cesar-trading-buy',
         tradingSell:      '/cesar-trading-sell',
+        tradingHistory:   '/cesar-trading-history',
     }
 };
+
+// ══════════════════════════════════════════
+// COINGECKO PRICE MAP
+// ══════════════════════════════════════════
+const CRYPTO_IDS = {
+    BTC:'bitcoin', ETH:'ethereum', BNB:'binancecoin', SOL:'solana',
+    XRP:'ripple', USDC:'usd-coin', ADA:'cardano', AVAX:'avalanche-2',
+    DOGE:'dogecoin', TRX:'tron', DOT:'polkadot', LINK:'chainlink',
+    MATIC:'matic-network', POL:'matic-network', SHIB:'shiba-inu',
+    DAI:'dai', LTC:'litecoin', UNI:'uniswap', ATOM:'cosmos',
+    XLM:'stellar', ETC:'ethereum-classic', BCH:'bitcoin-cash',
+    FIL:'filecoin', APT:'aptos', ARB:'arbitrum', OP:'optimism',
+    SUI:'sui', SEI:'sei-network', INJ:'injective-protocol', NEAR:'near',
+    FTM:'fantom', ALGO:'algorand', VET:'vechain', ICP:'internet-computer',
+    HBAR:'hedera-hashgraph', XTZ:'tezos', MANA:'decentraland',
+    SAND:'the-sandbox', AXS:'axie-infinity', AAVE:'aave',
+    CRV:'curve-dao-token', MKR:'maker', COMP:'compound-governance-token',
+    GRT:'the-graph', LDO:'lido-dao', RPL:'rocket-pool', IMX:'immutable-x',
+    ENS:'ethereum-name-service', WLD:'worldcoin-wld', APE:'apecoin',
+    STX:'blockstack', FLOW:'flow', ZEC:'zcash', XMR:'monero',
+    PEPE:'pepe', FLOKI:'floki', BONK:'bonk', JUP:'jupiter-exchange-solana',
+    PYTH:'pyth-network', TIA:'celestia', TON:'the-open-network',
+    NOT:'notcoin', RENDER:'render-token', FET:'fetch-ai',
+    AGIX:'singularitynet', OCEAN:'ocean-protocol',
+    ENA:'ethena', STRK:'starknet', W:'wormhole',
+};
+
+function getUserCryptoMap() {
+    const raw = localStorage.getItem('cesar_crypto_map') || '';
+    const map = {};
+    raw.split('\n').forEach(line => {
+        const idx = line.indexOf(':');
+        if (idx > 0) map[line.slice(0, idx).trim().toUpperCase()] = line.slice(idx + 1).trim();
+    });
+    return map;
+}
+
+function resolveCoinId(symbol) {
+    const custom = getUserCryptoMap();
+    return custom[symbol] || CRYPTO_IDS[symbol] || null;
+}
+
+async function fetchPrices(symbols) {
+    const ids = [...new Set(symbols.map(s => resolveCoinId(s)).filter(Boolean))];
+    if (!ids.length) return {};
+    try {
+        const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(',')}&vs_currencies=usd`);
+        if (!res.ok) throw new Error('CoinGecko ' + res.status);
+        const data = await res.json();
+        const out = {};
+        symbols.forEach(sym => {
+            const id = resolveCoinId(sym);
+            if (id && data[id]?.usd != null) out[sym] = data[id].usd;
+        });
+        return out;
+    } catch(e) {
+        console.warn('CoinGecko error:', e.message);
+        return {};
+    }
+}
 
 // Per-form step state
 const fstate = {};
@@ -681,13 +900,13 @@ setInterval(tick, 1000); tick();
 // ══════════════════════════════════════════
 function openSettings() {
     document.getElementById('cfg-url').value = CFG.url;
-    document.getElementById('cfg-key').value = CFG.key;
+    document.getElementById('cfg-key').value = '••••••••';
+    document.getElementById('cfg-crypto-map').value = localStorage.getItem('cesar_crypto_map') || '';
     document.getElementById('settingsModal').classList.add('open');
 }
 function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
 function saveSettings() {
-    localStorage.setItem('cesar_url', document.getElementById('cfg-url').value.trim().replace(/\/$/, ''));
-    localStorage.setItem('cesar_key', document.getElementById('cfg-key').value.trim());
+    localStorage.setItem('cesar_crypto_map', document.getElementById('cfg-crypto-map').value.trim());
     closeSettings();
     notify('✅ Configuration sauvegardée', 'success');
 }
@@ -696,7 +915,6 @@ function saveSettings() {
 // API
 // ══════════════════════════════════════════
 async function api(endpoint, method = 'GET', data = null) {
-    if (!CFG.url) { notify('⚠️ Configure l\'URL n8n dans ⚙️ Config', 'error'); openSettings(); return null; }
     const opts = {
         method,
         headers: { 'Content-Type': 'application/json', ...(CFG.key ? { Authorization: 'Bearer ' + CFG.key } : {}) },
@@ -720,44 +938,79 @@ async function loadPortfolio() {
         const dca  = d.dca  || [];
         const trad = d.trading || [];
 
+        // Gather all symbols then fetch live prices
+        const symbols = [...new Set([
+            ...dca.map(r  => v(r,'crypto','Crypto')),
+            ...trad.map(r => v(r,'crypto','Crypto')),
+        ].filter(s => s && s !== '—'))];
+        const prices = await fetchPrices(symbols);
+
         // DCA table
         const tbDCA = document.getElementById('tb-dca');
-        tbDCA.innerHTML = dca.length ? dca.map(r => `
-            <tr>
-                <td><strong>${v(r,'crypto','Crypto')}</strong></td>
+        tbDCA.innerHTML = dca.length ? dca.map(r => {
+            const sym      = v(r,'crypto','Crypto');
+            const qty      = parseFloat(v(r,'quantite','Quantité')) || 0;
+            const invested = parseFloat(v(r,'total','Total $'))     || 0;
+            const lp       = prices[sym];
+            const curVal   = lp != null ? qty * lp : null;
+            const pnl      = curVal != null ? curVal - invested : null;
+            const pnlPct   = (pnl != null && invested > 0) ? pnl / invested * 100 : null;
+            return `<tr>
+                <td><strong>${sym}</strong></td>
                 <td>${v(r,'quantite','Quantité')}</td>
                 <td>${fmtUSD(v(r,'prix_moyen','Prix achat ($)'))}</td>
-                <td><strong>${fmtUSD(v(r,'total','Total $'))}</strong></td>
-            </tr>`).join('') :
-            '<tr><td colspan="4"><div class="empty-state"><div class="ei">📭</div><p>Aucune position DCA active</p></div></td></tr>';
+                <td><strong>${fmtUSD(invested)}</strong></td>
+                <td>${lp != null ? '<span class="price-badge">$' + fmtNum(lp) + '</span>' : '<span style="color:var(--text-secondary)">—</span>'}</td>
+                <td>${curVal != null ? fmtUSD(curVal) : '—'}</td>
+                <td>${pnlHtml(pnl, pnlPct)}</td>
+            </tr>`;
+        }).join('') :
+            '<tr><td colspan="7"><div class="empty-state"><div class="ei">📭</div><p>Aucune position DCA active</p></div></td></tr>';
 
         // Trading table
         const tbT = document.getElementById('tb-trad');
-        tbT.innerHTML = trad.length ? trad.map(r => `
-            <tr>
+        tbT.innerHTML = trad.length ? trad.map(r => {
+            const sym      = v(r,'crypto','Crypto');
+            const qty      = parseFloat(v(r,'quantite','Quantité')) || 0;
+            const invested = parseFloat(v(r,'total','Total $'))     || 0;
+            const lp       = prices[sym];
+            const curVal   = lp != null ? qty * lp : null;
+            const pnl      = curVal != null ? curVal - invested : null;
+            const pnlPct   = (pnl != null && invested > 0) ? pnl / invested * 100 : null;
+            return `<tr>
                 <td><span class="code-tag">${v(r,'code','Code')}</span></td>
                 <td>${v(r,'date','Date')}</td>
-                <td><strong>${v(r,'crypto','Crypto')}</strong></td>
+                <td><strong>${sym}</strong></td>
                 <td>${v(r,'quantite','Quantité')}</td>
                 <td>${fmtUSD(v(r,'prix','Prix achat ($)'))}</td>
-                <td><strong>${fmtUSD(v(r,'total','Total $'))}</strong></td>
+                <td><strong>${fmtUSD(invested)}</strong></td>
                 <td style="color:var(--green)">${v(r,'objectif','Objectif')}</td>
-            </tr>`).join('') :
-            '<tr><td colspan="7"><div class="empty-state"><div class="ei">💤</div><p>Aucune position trading ouverte</p></div></td></tr>';
+                <td>${lp != null ? '<span class="price-badge">$' + fmtNum(lp) + '</span>' : '—'}</td>
+                <td>${curVal != null ? fmtUSD(curVal) : '—'}</td>
+                <td>${pnlHtml(pnl, pnlPct)}</td>
+            </tr>`;
+        }).join('') :
+            '<tr><td colspan="10"><div class="empty-state"><div class="ei">💤</div><p>Aucune position trading ouverte</p></div></td></tr>';
 
         // Stats
-        const tot = [...dca,...trad].reduce((s,r) => s + parseFloat(v(r,'total','Total $') || 0), 0);
+        const tot = [...dca,...trad].reduce((s,r) => s + (parseFloat(v(r,'total','Total $')) || 0), 0);
         document.getElementById('st-total').textContent = fmtUSD(tot);
         document.getElementById('st-dca').textContent   = dca.length;
         document.getElementById('st-trad').textContent  = trad.length;
+
+        const lu = document.getElementById('last-update');
+        if (lu) lu.textContent = 'Mis à jour ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+
         notify('✅ Portefeuille actualisé', 'success');
     } catch(e) { notify('❌ ' + e.message, 'error'); }
     finally { btn.innerHTML = '🔄 Actualiser'; btn.disabled = false; }
 }
 
 // ══════════════════════════════════════════
-// TRADING POSITIONS
+// TRADING POSITIONS (avec vente inline)
 // ══════════════════════════════════════════
+let tradingPosData = {};
+
 async function loadTradingPos() {
     const btn = document.getElementById('btn-rtp');
     btn.innerHTML = '<span class="spin"></span>'; btn.disabled = true;
@@ -765,22 +1018,324 @@ async function loadTradingPos() {
         const d = await api(CFG.ep.tradingPositions);
         if (!d) return;
         const rows = Array.isArray(d) ? d : (d.positions || []);
-        const tb = document.getElementById('tb-tpos');
-        tb.innerHTML = rows.length ? rows.map(r => `
-            <tr>
-                <td><span class="code-tag">${v(r,'code','Code')}</span></td>
-                <td>${v(r,'date','Date')}</td>
-                <td><strong>${v(r,'crypto','Crypto')}</strong></td>
-                <td>${v(r,'quantite','Quantité')}</td>
-                <td>${fmtUSD(v(r,'prix','Prix achat ($)'))}</td>
-                <td>${fmtUSD(v(r,'total','Total $'))}</td>
-                <td style="color:var(--green)">${v(r,'objectif','Objectif')}</td>
-                <td><span class="badge badge-open">Ouverte</span></td>
-            </tr>`).join('') :
-            '<tr><td colspan="8"><div class="empty-state"><div class="ei">💤</div><p>Aucune position ouverte</p></div></td></tr>';
+
+        const symbols = [...new Set(rows.map(r => v(r,'crypto','Crypto')).filter(s => s && s !== '—'))];
+        const prices  = await fetchPrices(symbols);
+
+        tradingPosData = {};
+        rows.forEach(r => {
+            const code = v(r,'code','Code');
+            tradingPosData[code] = { sym: v(r,'crypto','Crypto'), qty: parseFloat(v(r,'quantite','Quantité')) || 0 };
+        });
+
+        const today = new Date().toISOString().slice(0,10);
+        const tb    = document.getElementById('tb-tpos');
+
+        if (!rows.length) {
+            tb.innerHTML = '<tr><td colspan="11"><div class="empty-state"><div class="ei">💤</div><p>Aucune position ouverte</p></div></td></tr>';
+        } else {
+            tb.innerHTML = rows.map(r => {
+                const code     = v(r,'code','Code');
+                const sym      = v(r,'crypto','Crypto');
+                const qty      = parseFloat(v(r,'quantite','Quantité')) || 0;
+                const invested = parseFloat(v(r,'total','Total $')) || 0;
+                const lp       = prices[sym];
+                const curVal   = lp != null ? qty * lp : null;
+                const pnl      = curVal != null ? curVal - invested : null;
+                const pnlPct   = (pnl != null && invested > 0) ? pnl / invested * 100 : null;
+                return `
+                <tr id="tpos-row-${code}">
+                    <td><span class="code-tag">${code}</span></td>
+                    <td>${v(r,'date','Date')}</td>
+                    <td><strong>${sym}</strong></td>
+                    <td>${qty}</td>
+                    <td>${fmtUSD(v(r,'prix','Prix achat ($)'))}</td>
+                    <td>${fmtUSD(invested)}</td>
+                    <td style="color:var(--green)">${v(r,'objectif','Objectif')}</td>
+                    <td>${lp != null ? '<span class="price-badge">$'+fmtNum(lp)+'</span>' : '—'}</td>
+                    <td>${curVal != null ? fmtUSD(curVal) : '—'}</td>
+                    <td>${pnlHtml(pnl, pnlPct)}</td>
+                    <td><button class="btn btn-danger btn-sm" onclick="toggleSellRow('${code}')">🔴 Vendre</button></td>
+                </tr>
+                <tr id="tpos-sell-${code}" style="display:none">
+                    <td colspan="11" style="padding:0">
+                        <div class="sell-form-inner">
+                            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">
+                                Clôturer <strong style="color:var(--text-primary)">${sym}</strong>
+                                — <span class="code-tag">${code}</span>
+                                — Quantité totale : <strong style="color:var(--text-primary)">${qty}</strong>
+                            </div>
+                            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+                                <div class="fg" style="min-width:130px">
+                                    <label>Date de vente</label>
+                                    <input type="date" id="isell-date-${code}" value="${today}">
+                                </div>
+                                <div class="fg" style="min-width:150px">
+                                    <label>Prix de vente total ($)</label>
+                                    <input type="number" id="isell-price-${code}" placeholder="ex: 55000" step="any" min="0">
+                                </div>
+                                <div class="fg" style="min-width:190px">
+                                    <label>Quantité à vendre</label>
+                                    <div class="pct-btns">
+                                        <button class="pct-btn" onclick="setSellQty('${code}',${qty},25)">25%</button>
+                                        <button class="pct-btn" onclick="setSellQty('${code}',${qty},50)">50%</button>
+                                        <button class="pct-btn" onclick="setSellQty('${code}',${qty},75)">75%</button>
+                                        <button class="pct-btn" onclick="setSellQty('${code}',${qty},100)">100%</button>
+                                    </div>
+                                    <input type="number" id="isell-qty-${code}" value="${qty}" step="any" min="0">
+                                </div>
+                                <div style="display:flex;gap:7px;padding-bottom:1px">
+                                    <button class="btn btn-outline btn-sm" onclick="toggleSellRow('${code}')">Annuler</button>
+                                    <button class="btn btn-danger btn-sm" id="isell-btn-${code}" onclick="submitInlineSell('${code}')">🔴 Confirmer</button>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
         notify('✅ Positions actualisées', 'success');
     } catch(e) { notify('❌ ' + e.message, 'error'); }
     finally { btn.innerHTML = '🔄 Actualiser'; btn.disabled = false; }
+}
+
+function toggleSellRow(code) {
+    const row   = document.getElementById('tpos-sell-' + code);
+    if (!row) return;
+    const isOpen = row.style.display !== 'none';
+    document.querySelectorAll('[id^="tpos-sell-"]').forEach(r => { r.style.display = 'none'; });
+    if (!isOpen) row.style.display = 'table-row';
+}
+
+function setSellQty(code, totalQty, pct) {
+    const el = document.getElementById('isell-qty-' + code);
+    if (el) el.value = parseFloat((totalQty * pct / 100).toFixed(8));
+}
+
+async function submitInlineSell(code) {
+    const btn   = document.getElementById('isell-btn-' + code);
+    const date  = document.getElementById('isell-date-' + code).value;
+    const price = parseFloat(document.getElementById('isell-price-' + code).value);
+    const qty   = parseFloat(document.getElementById('isell-qty-' + code).value);
+    if (!date || isNaN(price) || isNaN(qty) || qty <= 0) { notify('⚠️ Remplis tous les champs', 'error'); return; }
+    const dp = date.split('-');
+    const fd = `${dp[2]} ${dp[1]} ${dp[0]}`;
+    btn.innerHTML = '<span class="spin"></span>'; btn.disabled = true;
+    try {
+        const r = await api(CFG.ep.tradingSell, 'POST', {
+            message: `${code} / ${fd} / ${price} / ${qty}`,
+            data: { code, dateVente: fd, prixVente: price, quantite: qty }
+        });
+        if (r !== null) { notify('✅ Position clôturée !', 'success'); await loadTradingPos(); }
+    } catch(e) {
+        notify('❌ ' + e.message, 'error');
+        btn.innerHTML = '🔴 Confirmer'; btn.disabled = false;
+    }
+}
+
+// ══════════════════════════════════════════
+// ACHAT RAPIDE (page Positions)
+// ══════════════════════════════════════════
+function toggleQuickBuy() {
+    const panel = document.getElementById('quick-buy-panel');
+    panel.classList.toggle('open');
+    if (panel.classList.contains('open')) {
+        const d = document.getElementById('qb-date');
+        if (d && !d.value) d.value = new Date().toISOString().slice(0,10);
+    }
+}
+
+function calcQuickBuy() {
+    const qEl = document.getElementById('qb-qty');
+    const tEl = document.getElementById('qb-total');
+    const pEl = document.getElementById('qb-price');
+    const q = parseFloat(qEl.value) || null;
+    const t = parseFloat(tEl.value) || null;
+    const p = parseFloat(pEl.value) || null;
+    [['qty',qEl],['total',tEl],['price',pEl]].forEach(([key, el]) => {
+        el.classList.remove('calculated');
+        const tag = document.getElementById('qb-'+key+'-tag');
+        if (tag) { tag.textContent = ''; tag.classList.remove('show'); }
+    });
+    function setC(key, el, val, dec) {
+        el.value = val.toFixed(dec);
+        el.classList.add('calculated');
+        const tag = document.getElementById('qb-'+key+'-tag');
+        if (tag) { tag.textContent = 'calculé'; tag.classList.add('show'); }
+    }
+    if (q && t && !p)      setC('price', pEl, t / q, 2);
+    else if (q && p && !t) setC('total', tEl, q * p, 2);
+    else if (t && p && !q) setC('qty',   qEl, t / p, 8);
+}
+
+async function handleQuickBuy() {
+    const crypto  = document.getElementById('qb-crypto').value.trim().toUpperCase();
+    const date    = document.getElementById('qb-date').value;
+    const target  = parseFloat(document.getElementById('qb-target').value) || 0;
+    if (!crypto || !date) { notify('⚠️ Crypto et date sont requis', 'error'); return; }
+    const q = parseFloat(document.getElementById('qb-qty').value);
+    const t = parseFloat(document.getElementById('qb-total').value);
+    const p = parseFloat(document.getElementById('qb-price').value);
+    const filled = [q, t, p].filter(n => !isNaN(n) && n > 0).length;
+    if (filled < 2) { notify('⚠️ Remplis au moins 2 champs parmi Quantité / Total / Prix', 'error'); return; }
+    calcQuickBuy();
+    const qF = parseFloat(document.getElementById('qb-qty').value);
+    const tF = parseFloat(document.getElementById('qb-total').value);
+    const btn = document.getElementById('qb-submit');
+    btn.innerHTML = '<span class="spin"></span> Envoi…'; btn.disabled = true;
+    const dp = date.split('-');
+    const fd = `${dp[2]} ${dp[1]} ${dp[0]}`;
+    try {
+        const r = await api(CFG.ep.tradingBuy, 'POST', {
+            message: `${crypto} / ${fd} / ${qF} / ${tF} / ${target}`,
+            data: { crypto, date: fd, quantite: qF, prixTotal: tF, objectif: target }
+        });
+        if (r !== null) {
+            notify('✅ Position ouverte !', 'success');
+            ['qb-crypto','qb-qty','qb-total','qb-price','qb-target'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.value = ''; el.classList.remove('calculated'); }
+            });
+            ['qty','total','price'].forEach(k => {
+                const tag = document.getElementById('qb-'+k+'-tag');
+                if (tag) { tag.textContent = ''; tag.classList.remove('show'); }
+            });
+            toggleQuickBuy();
+            await loadTradingPos();
+        }
+    } catch(e) { notify('❌ ' + e.message, 'error'); }
+    finally { btn.innerHTML = '🚀 Ouvrir la position'; btn.disabled = false; }
+}
+
+// ══════════════════════════════════════════
+// TRADING DASHBOARD
+// ══════════════════════════════════════════
+async function loadTradingDash() {
+    const btn = document.getElementById('btn-rtd');
+    btn.innerHTML = '<span class="spin"></span>'; btn.disabled = true;
+    try {
+        const d    = await api(CFG.ep.portfolio);
+        const trad = (d?.trading) || [];
+        const symbols = [...new Set(trad.map(r => v(r,'crypto','Crypto')).filter(s => s && s !== '—'))];
+        const prices  = await fetchPrices(symbols);
+
+        let invested = 0, curTotal = 0;
+        trad.forEach(r => {
+            const sym = v(r,'crypto','Crypto');
+            const qty = parseFloat(v(r,'quantite','Quantité')) || 0;
+            const inv = parseFloat(v(r,'total','Total $')) || 0;
+            invested += inv;
+            const lp = prices[sym];
+            if (lp != null) curTotal += qty * lp;
+        });
+        const pnlOpen = curTotal > 0 ? curTotal - invested : null;
+        const pnlPct  = (pnlOpen != null && invested > 0) ? pnlOpen / invested * 100 : null;
+
+        document.getElementById('td-open').textContent     = trad.length;
+        document.getElementById('td-invested').textContent = fmtUSD(invested);
+        document.getElementById('td-value').textContent    = curTotal > 0 ? fmtUSD(curTotal) : '—';
+        const pnlEl = document.getElementById('td-pnl');
+        if (pnlOpen != null) {
+            const s = pnlOpen >= 0 ? '+' : '';
+            pnlEl.textContent = `${s}${fmtUSD(pnlOpen)}${pnlPct != null ? ` (${s}${pnlPct.toFixed(2)}%)` : ''}`;
+            pnlEl.className = 'stat-val ' + (pnlOpen > 0 ? 'pnl-pos' : pnlOpen < 0 ? 'pnl-neg' : 'pnl-zero');
+        } else { pnlEl.textContent = '—'; pnlEl.className = 'stat-val muted'; }
+
+        const tbOpen = document.getElementById('td-tb-open');
+        tbOpen.innerHTML = trad.length ? trad.map(r => {
+            const sym = v(r,'crypto','Crypto');
+            const qty = parseFloat(v(r,'quantite','Quantité')) || 0;
+            const inv = parseFloat(v(r,'total','Total $')) || 0;
+            const lp  = prices[sym];
+            const cur = lp != null ? qty * lp : null;
+            const pnl = cur != null ? cur - inv : null;
+            const pct = (pnl != null && inv > 0) ? pnl / inv * 100 : null;
+            return `<tr>
+                <td><span class="code-tag">${v(r,'code','Code')}</span></td>
+                <td>${v(r,'date','Date')}</td>
+                <td><strong>${sym}</strong></td>
+                <td>${fmtUSD(inv)}</td>
+                <td>${lp != null ? '<span class="price-badge">$'+fmtNum(lp)+'</span>' : '—'}</td>
+                <td>${cur != null ? fmtUSD(cur) : '—'}</td>
+                <td>${pnlHtml(pnl, pct)}</td>
+                <td style="color:var(--green)">${v(r,'objectif','Objectif')}</td>
+            </tr>`;
+        }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="ei">💤</div><p>Aucune position ouverte</p></div></td></tr>';
+
+        // Historique (endpoint optionnel)
+        try {
+            const hist  = await api(CFG.ep.tradingHistory);
+            const hRows = Array.isArray(hist) ? hist : (hist?.history || []);
+            let realized = 0;
+            hRows.forEach(r => {
+                const inv = parseFloat(v(r,'total_achat','investi')) || 0;
+                const rev = parseFloat(v(r,'total_vente','revenu'))  || 0;
+                realized += rev - inv;
+            });
+            const rEl = document.getElementById('td-realized');
+            const s   = realized >= 0 ? '+' : '';
+            rEl.textContent = s + fmtUSD(realized);
+            rEl.className = 'stat-val ' + (realized > 0 ? 'pnl-pos' : realized < 0 ? 'pnl-neg' : 'pnl-zero');
+
+            const tbHist = document.getElementById('td-tb-hist');
+            tbHist.innerHTML = hRows.length ? hRows.map(r => {
+                const inv  = parseFloat(v(r,'total_achat','investi')) || 0;
+                const rev  = parseFloat(v(r,'total_vente','revenu'))  || 0;
+                const pnl  = rev - inv;
+                const pct  = inv > 0 ? pnl / inv * 100 : null;
+                const sign = pnl >= 0 ? '+' : '';
+                return `<tr>
+                    <td><span class="code-tag">${v(r,'code','Code')}</span></td>
+                    <td><strong>${v(r,'crypto','Crypto')}</strong></td>
+                    <td>${v(r,'date_achat','Date achat')}</td>
+                    <td>${v(r,'date_vente','Date vente')}</td>
+                    <td>${fmtUSD(inv)}</td>
+                    <td>${fmtUSD(rev)}</td>
+                    <td>${pnlHtml(pnl, pct)}</td>
+                    <td class="${pnl > 0 ? 'pnl-pos' : pnl < 0 ? 'pnl-neg' : 'pnl-zero'}">${pct != null ? sign + pct.toFixed(2) + '%' : '—'}</td>
+                </tr>`;
+            }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="ei">📋</div><p>Aucune transaction clôturée</p></div></td></tr>';
+        } catch(_) {
+            document.getElementById('td-realized').textContent = '—';
+            document.getElementById('td-tb-hist').innerHTML =
+                '<tr><td colspan="8"><div class="empty-state"><div class="ei">⚙️</div><p>Configure <code style="color:var(--gold)">/cesar-trading-history</code> dans n8n pour voir l\'historique</p></div></td></tr>';
+        }
+
+        const lu = document.getElementById('last-update-dash');
+        if (lu) lu.textContent = 'Mis à jour ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+        notify('✅ Dashboard actualisé', 'success');
+    } catch(e) { notify('❌ ' + e.message, 'error'); }
+    finally { btn.innerHTML = '🔄 Actualiser'; btn.disabled = false; }
+}
+
+// ══════════════════════════════════════════
+// CALCUL AUTO DCA
+// ══════════════════════════════════════════
+function calcDCA(pfx) {
+    const qEl = document.getElementById(pfx+'-qty');
+    const aEl = document.getElementById(pfx+'-amount');
+    const pEl = document.getElementById(pfx+'-price');
+    const q = parseFloat(qEl.value) || null;
+    const a = parseFloat(aEl.value) || null;
+    const p = parseFloat(pEl.value) || null;
+
+    // Reset indicators
+    [['qty',qEl],['amount',aEl],['price',pEl]].forEach(([key, el]) => {
+        el.classList.remove('calculated');
+        const tag = document.getElementById(pfx+'-'+key+'-tag');
+        tag.textContent = ''; tag.classList.remove('show');
+    });
+
+    function setCalc(key, el, val, decimals) {
+        el.value = val.toFixed(decimals);
+        el.classList.add('calculated');
+        const tag = document.getElementById(pfx+'-'+key+'-tag');
+        tag.textContent = 'calculé'; tag.classList.add('show');
+    }
+
+    if (q && a && !p)       setCalc('price',  pEl, a / q, 2);
+    else if (q && p && !a)  setCalc('amount', aEl, q * p, 2);
+    else if (a && p && !q)  setCalc('qty',    qEl, a / p, 8);
 }
 
 // ══════════════════════════════════════════
@@ -799,19 +1354,27 @@ function handleDCA(type) {
     const price  = parseFloat(document.getElementById(pfx+'-price').value);
 
     if (state === 'fill') {
-        if (!crypto || !date || isNaN(qty) || isNaN(amount) || isNaN(price)) {
-            notify('⚠️ Tous les champs sont requis', 'error'); return;
-        }
+        if (!crypto || !date) { notify('⚠️ Crypto et date sont requis', 'error'); return; }
+        const filled = [qty, amount, price].filter(v => !isNaN(v) && v > 0).length;
+        if (filled < 2) { notify('⚠️ Remplis au moins 2 champs parmi Quantité / Montant / Prix', 'error'); return; }
+        // Calcule le 3ème si besoin
+        calcDCA(pfx);
+        const qFinal = parseFloat(document.getElementById(pfx+'-qty').value);
+        const aFinal = parseFloat(document.getElementById(pfx+'-amount').value);
+        const pFinal = parseFloat(document.getElementById(pfx+'-price').value);
         document.getElementById('cd-'+fId).innerHTML = rows({
             'Crypto': crypto, 'Date': fmtDate(date),
-            'Quantité': qty, 'Montant': fmtUSD(amount), 'Prix unitaire': fmtUSD(price)
+            'Quantité': qFinal, 'Montant': fmtUSD(aFinal), 'Prix unitaire': fmtUSD(pFinal)
         });
         document.getElementById('cp-'+fId).classList.add('show');
         const btn = document.getElementById('bs-'+fId);
         btn.innerHTML = '✅ Confirmer et enregistrer'; btn.className = 'btn btn-success';
         fstate[fId] = 'confirm';
     } else {
-        submitDCA(type, pfx, fId, label, crypto, date, qty, amount, price);
+        const qty2   = parseFloat(document.getElementById(pfx+'-qty').value);
+        const amount2= parseFloat(document.getElementById(pfx+'-amount').value);
+        const price2 = parseFloat(document.getElementById(pfx+'-price').value);
+        submitDCA(type, pfx, fId, label, crypto, date, qty2, amount2, price2);
     }
 }
 
@@ -921,8 +1484,8 @@ async function submitSellTrading(code, date, price) {
 // RESET
 // ══════════════════════════════════════════
 const FORMS = {
-    'buy-dca':     { btn:'bs-buy-dca',      txt:'💰 Enregistrer l\'achat',  cls:'btn-primary', fields:['bd-crypto','bd-qty','bd-amount','bd-price'] },
-    'sell-dca':    { btn:'bs-sell-dca',     txt:'📉 Enregistrer la vente',  cls:'btn-primary', fields:['sd-crypto','sd-qty','sd-amount','sd-price'] },
+    'buy-dca':     { btn:'bs-buy-dca',      txt:'💰 Enregistrer l\'achat',  cls:'btn-primary', fields:['bd-crypto','bd-qty','bd-amount','bd-price'], calcPfx:'bd' },
+    'sell-dca':    { btn:'bs-sell-dca',     txt:'📉 Enregistrer la vente',  cls:'btn-primary', fields:['sd-crypto','sd-qty','sd-amount','sd-price'], calcPfx:'sd' },
     'buy-trading': { btn:'bs-buy-trading',  txt:'🚀 Ouvrir la position',    cls:'btn-primary', fields:['bt-crypto','bt-qty','bt-total','bt-target','bt-unit'] },
     'sell-trading':{ btn:'bs-sell-trading', txt:'🔴 Clôturer la position',  cls:'btn-primary', fields:['st-code','st-price'] },
 };
@@ -934,7 +1497,16 @@ function resetForm(fId) {
     if (cfg) {
         const btn = document.getElementById(cfg.btn);
         btn.innerHTML = cfg.txt; btn.className = 'btn ' + cfg.cls; btn.disabled = false;
-        cfg.fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        cfg.fields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.value = ''; el.classList.remove('calculated'); }
+    });
+    if (cfg.calcPfx) {
+        ['qty','amount','price'].forEach(key => {
+            const tag = document.getElementById(cfg.calcPfx+'-'+key+'-tag');
+            if (tag) { tag.textContent = ''; tag.classList.remove('show'); }
+        });
+    }
     }
 }
 
@@ -955,6 +1527,21 @@ function fmtUSD(n) {
     return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' $';
 }
 
+function fmtNum(n) {
+    const num = parseFloat(n);
+    if (isNaN(num)) return '—';
+    if (num >= 1000) return num.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    if (num >= 1)    return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    return num.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 8 });
+}
+
+function pnlHtml(pnl, pnlPct) {
+    if (pnl == null) return '<span class="pnl-zero">—</span>';
+    const cls  = pnl > 0 ? 'pnl-pos' : pnl < 0 ? 'pnl-neg' : 'pnl-zero';
+    const sign = pnl >= 0 ? '+' : '';
+    return `<span class="${cls}">${sign}${fmtUSD(pnl)}<br><small>${sign}${pnlPct.toFixed(2)}%</small></span>`;
+}
+
 function fmtDate(iso) {
     if (!iso) return '—';
     const [y,m,d] = iso.split('-');
@@ -971,9 +1558,8 @@ function notify(msg, type = 'info') {
 
 // ── Init ──
 nav('portfolio');
-if (!CFG.url) {
-    setTimeout(() => notify('⚙️ Configure l\'URL n8n pour commencer', 'info'), 600);
-}
+// Auto-refresh toutes les 4 heures
+setInterval(loadPortfolio, 4 * 60 * 60 * 1000);
 </script>
 </body>
 </html>
