@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>César — Crypto Manager</title>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --gold: #C9963E;
+            --gold-light: #e8b04a;
+            --gold-bg: rgba(201, 150, 62, 0.08);
+            --green: #27AE60;
+            --red: #C0392B;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --border: #30363d;
+            --border-gold: rgba(201, 150, 62, 0.25);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── HEADER ── */
+        header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-gold);
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon {
+            width: 38px; height: 38px;
+            background: linear-gradient(135deg, var(--gold), var(--gold-light));
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+        .logo h1 { font-size: 20px; font-weight: 700; color: var(--gold); letter-spacing: 0.5px; }
+        .logo span { font-size: 11px; color: var(--text-secondary); }
+        .header-right { display: flex; align-items: center; gap: 14px; }
+        .clock { font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+        .btn-icon {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .btn-icon:hover { border-color: var(--gold); color: var(--gold); }
+
+        /* ── LAYOUT ── */
+        .app-layout { display: flex; flex: 1; }
+
+        /* ── SIDEBAR ── */
+        .sidebar {
+            width: 210px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 12px 0;
+            flex-shrink: 0;
+        }
+        .nav-group { margin-bottom: 4px; }
+        .nav-group-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 10px 16px 4px;
+        }
+        .nav-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 16px;
+            cursor: pointer;
+            font-size: 13.5px;
+            color: var(--text-secondary);
+            border-left: 3px solid transparent;
+            transition: all 0.15s;
+        }
+        .nav-item:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+        .nav-item.active { background: var(--gold-bg); color: var(--gold); border-left-color: var(--gold); }
+        .nav-icon { font-size: 15px; width: 20px; text-align: center; }
+
+        /* ── MAIN ── */
+        .main { flex: 1; padding: 28px; overflow-y: auto; }
+        .page { display: none; max-width: 960px; }
+        .page.active { display: block; }
+
+        .page-header { margin-bottom: 24px; }
+        .page-header-row { display: flex; justify-content: space-between; align-items: flex-start; }
+        .page-title { font-size: 22px; font-weight: 700; margin-bottom: 3px; }
+        .page-sub { font-size: 13px; color: var(--text-secondary); }
+
+        /* ── STATS ── */
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 20px; }
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 18px;
+        }
+        .stat-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-val { font-size: 21px; font-weight: 700; }
+        .stat-val.gold { color: var(--gold); }
+        .stat-val.muted { color: var(--text-primary); }
+
+        /* ── CARD ── */
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 18px;
+        }
+        .card-title {
+            font-size: 12px; font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase; letter-spacing: 0.6px;
+            margin-bottom: 16px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        /* ── TABLE ── */
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        thead th {
+            text-align: left; padding: 9px 12px;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
+        }
+        thead th:first-child { border-radius: 8px 0 0 8px; }
+        thead th:last-child { border-radius: 0 8px 8px 0; }
+        tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+        tbody tr:hover { background: var(--gold-bg); }
+        tbody tr:last-child { border-bottom: none; }
+        tbody td { padding: 11px 12px; }
+
+        .code-tag { font-family: monospace; color: var(--gold); font-size: 12px; }
+        .badge {
+            display: inline-flex; align-items: center;
+            padding: 2px 8px; border-radius: 20px;
+            font-size: 11px; font-weight: 600;
+        }
+        .badge-open { background: rgba(39,174,96,.15); color: var(--green); }
+        .badge-closed { background: rgba(139,148,158,.15); color: var(--text-secondary); }
+
+        .empty-state { text-align: center; padding: 40px; color: var(--text-secondary); }
+        .empty-state .ei { font-size: 36px; margin-bottom: 10px; }
+        .empty-state p { font-size: 13px; }
+
+        /* ── FORM ── */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        .fg { display: flex; flex-direction: column; gap: 5px; }
+        label { font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+        input, select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            width: 100%;
+            transition: border-color 0.2s;
+        }
+        input:focus, select:focus { border-color: var(--gold); }
+        input::placeholder { color: var(--text-secondary); opacity: 0.5; }
+        input[readonly] { opacity: 0.5; cursor: default; }
+        .hint { font-size: 11px; color: var(--text-secondary); }
+
+        /* ── CONFIRM PANEL ── */
+        .confirm-panel {
+            display: none;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-gold);
+            border-radius: 10px;
+            padding: 16px;
+            margin-top: 18px;
+        }
+        .confirm-panel.show { display: block; }
+        .confirm-title { font-size: 12px; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+        .confirm-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+        .confirm-row:last-child { border-bottom: none; }
+        .confirm-row .ck { color: var(--text-secondary); }
+        .confirm-row .cv { color: var(--text-primary); font-weight: 600; }
+
+        /* ── BUTTONS ── */
+        .btn {
+            padding: 10px 18px; border-radius: 8px;
+            font-size: 13px; font-weight: 600; cursor: pointer;
+            border: none; transition: all 0.2s;
+            display: inline-flex; align-items: center; gap: 7px;
+        }
+        .btn-primary { background: var(--gold); color: #0d1117; }
+        .btn-primary:hover { background: var(--gold-light); transform: translateY(-1px); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
+        .btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+        .btn-success { background: rgba(39,174,96,.15); border: 1px solid var(--green); color: var(--green); }
+        .btn-success:hover { background: rgba(39,174,96,.25); }
+        .btn-danger { background: rgba(192,57,43,.15); border: 1px solid var(--red); color: var(--red); }
+        .btn-danger:hover { background: rgba(192,57,43,.25); }
+        .btn-refresh {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 7px 14px; border-radius: 7px;
+            cursor: pointer; font-size: 12px; transition: all 0.2s;
+        }
+        .btn-refresh:hover { border-color: var(--gold); color: var(--gold); }
+        .btn-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .form-actions {
+            display: flex; justify-content: flex-end; gap: 10px;
+            margin-top: 20px; padding-top: 18px;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ── SPINNER ── */
+        .spin {
+            width: 14px; height: 14px;
+            border: 2px solid rgba(201,150,62,.3);
+            border-top-color: var(--gold);
+            border-radius: 50%;
+            animation: spin .7s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── NOTIFICATION ── */
+        .notif {
+            position: fixed; top: 74px; right: 20px;
+            padding: 12px 18px; border-radius: 10px;
+            font-size: 13px; font-weight: 500;
+            z-index: 999;
+            transform: translateX(130%); transition: transform 0.3s ease;
+            max-width: 300px;
+            display: flex; align-items: center; gap: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.4);
+        }
+        .notif.show { transform: translateX(0); }
+        .notif.success { background: var(--bg-secondary); border: 1px solid var(--green); color: var(--green); }
+        .notif.error { background: var(--bg-secondary); border: 1px solid var(--red); color: var(--red); }
+        .notif.info { background: var(--bg-secondary); border: 1px solid var(--gold); color: var(--gold); }
+
+        /* ── MODAL ── */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,.72); z-index: 200;
+            align-items: center; justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-gold);
+            border-radius: 16px; padding: 28px;
+            width: 500px; max-width: 92vw;
+            max-height: 90vh; overflow-y: auto;
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-title { font-size: 17px; font-weight: 700; color: var(--gold); }
+        .modal-close { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 20px; }
+        .endpoints-list { font-size: 12px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 7px; margin-top: 12px; }
+        .ep { display: flex; gap: 8px; align-items: center; }
+        .ep code { color: var(--gold); background: var(--bg-tertiary); padding: 2px 7px; border-radius: 4px; font-size: 12px; white-space: nowrap; }
+
+        /* ── SETUP BANNER ── */
+        .setup-banner {
+            background: rgba(201,150,62,.1);
+            border: 1px solid var(--border-gold);
+            border-radius: 10px;
+            padding: 13px 16px;
+            margin-bottom: 20px;
+            font-size: 13px; color: var(--gold);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .setup-banner a { color: var(--gold); text-decoration: underline; cursor: pointer; }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 700px) {
+            .sidebar { width: 54px; }
+            .nav-item span:not(.nav-icon) { display: none; }
+            .nav-group-label { display: none; }
+            .main { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="notif" id="notif"></div>
+
+<!-- ── SETTINGS MODAL ── -->
+<div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">⚙️ Configuration webhooks</div>
+            <button class="modal-close" onclick="closeSettings()">✕</button>
+        </div>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:18px;line-height:1.6;">
+            Renseigne l'URL de base de tes webhooks n8n.<br>
+            Les paramètres sont sauvegardés dans ton navigateur.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:14px;">
+            <div class="fg">
+                <label>URL Base n8n</label>
+                <input type="text" id="cfg-url" placeholder="https://ton-n8n.app.n8n.cloud/webhook" />
+                <div class="hint">Sans slash final — ex : https://n8n.efficiency-hub.co/webhook</div>
+            </div>
+            <div class="fg">
+                <label>Clé API (optionnel)</label>
+                <input type="password" id="cfg-key" placeholder="Bearer token si workflow protégé" />
+            </div>
+        </div>
+        <div style="margin-top:18px;display:flex;gap:10px;justify-content:flex-end;">
+            <button class="btn btn-outline" onclick="closeSettings()">Annuler</button>
+            <button class="btn btn-primary" onclick="saveSettings()">💾 Sauvegarder</button>
+        </div>
+        <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--border);">
+            <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.8px;">Webhooks à créer dans n8n</div>
+            <div class="endpoints-list">
+                <div class="ep"><code>GET /cesar-portfolio</code><span>→ retourne positions DCA + Trading</span></div>
+                <div class="ep"><code>POST /cesar-dca</code><span>→ achat ou vente DCA</span></div>
+                <div class="ep"><code>GET /cesar-trading-positions</code><span>→ positions trading ouvertes</span></div>
+                <div class="ep"><code>POST /cesar-trading-buy</code><span>→ ouvrir une position trading</span></div>
+                <div class="ep"><code>POST /cesar-trading-sell</code><span>→ clôturer une position trading</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── HEADER ── -->
+<header>
+    <div class="logo">
+        <div class="logo-icon">💎</div>
+        <div>
+            <h1>César</h1>
+            <span>Crypto Manager</span>
+        </div>
+    </div>
+    <div class="header-right">
+        <div class="clock" id="clock"></div>
+        <button class="btn-icon" onclick="openSettings()">⚙️ Config</button>
+    </div>
+</header>
+
+<!-- ── APP ── -->
+<div class="app-layout">
+
+    <!-- SIDEBAR -->
+    <nav class="sidebar">
+        <div class="nav-group">
+            <div class="nav-group-label">Aperçu</div>
+            <div class="nav-item active" onclick="nav('portfolio')">
+                <span class="nav-icon">📊</span><span>Portefeuille</span>
+            </div>
+        </div>
+        <div class="nav-group">
+            <div class="nav-group-label">DCA</div>
+            <div class="nav-item" onclick="nav('buy-dca')">
+                <span class="nav-icon">💰</span><span>Achat DCA</span>
+            </div>
+            <div class="nav-item" onclick="nav('sell-dca')">
+                <span class="nav-icon">📉</span><span>Vente DCA</span>
+            </div>
+        </div>
+        <div class="nav-group">
+            <div class="nav-group-label">Trading</div>
+            <div class="nav-item" onclick="nav('trading-pos')">
+                <span class="nav-icon">⚡</span><span>Positions</span>
+            </div>
+            <div class="nav-item" onclick="nav('buy-trading')">
+                <span class="nav-icon">🚀</span><span>Achat Trading</span>
+            </div>
+            <div class="nav-item" onclick="nav('sell-trading')">
+                <span class="nav-icon">🔴</span><span>Vente Trading</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN -->
+    <main class="main">
+
+        <!-- ══ PORTFOLIO ══ -->
+        <div class="page active" id="page-portfolio">
+            <div class="page-header">
+                <div class="page-header-row">
+                    <div>
+                        <div class="page-title">📊 Mon Portefeuille</div>
+                        <div class="page-sub">Vue consolidée de tes positions DCA et Trading</div>
+                    </div>
+                    <button class="btn-refresh" id="btn-rp" onclick="loadPortfolio()">🔄 Actualiser</button>
+                </div>
+            </div>
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-label">Total Investi</div>
+                    <div class="stat-val gold" id="st-total">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Cryptos DCA</div>
+                    <div class="stat-val muted" id="st-dca">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Positions Trading</div>
+                    <div class="stat-val muted" id="st-trad">—</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">📈 Positions DCA actives</div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Crypto</th><th>Quantité</th><th>Prix Moyen</th><th>Total Investi</th></tr></thead>
+                        <tbody id="tb-dca"><tr><td colspan="4"><div class="empty-state"><div class="ei">📭</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">⚡ Positions Trading ouvertes</div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Code</th><th>Date</th><th>Crypto</th><th>Quantité</th><th>Prix Achat</th><th>Total $</th><th>Objectif</th></tr></thead>
+                        <tbody id="tb-trad"><tr><td colspan="7"><div class="empty-state"><div class="ei">📭</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ BUY DCA ══ -->
+        <div class="page" id="page-buy-dca">
+            <div class="page-header">
+                <div class="page-title">💰 Achat DCA</div>
+                <div class="page-sub">Enregistre un achat dans ta stratégie Dollar Cost Averaging</div>
+            </div>
+            <div class="card">
+                <div class="card-title">📝 Détails de l'achat</div>
+                <div class="form-grid">
+                    <div class="fg">
+                        <label>Crypto</label>
+                        <input type="text" id="bd-crypto" placeholder="BTC, ETH, SOL…" oninput="this.value=this.value.toUpperCase()" />
+                    </div>
+                    <div class="fg">
+                        <label>Date d'achat</label>
+                        <input type="date" id="bd-date" />
+                    </div>
+                    <div class="fg">
+                        <label>Quantité achetée</label>
+                        <input type="number" id="bd-qty" placeholder="0.5" step="any" min="0" />
+                    </div>
+                    <div class="fg">
+                        <label>Montant total ($)</label>
+                        <input type="number" id="bd-amount" placeholder="1000" step="any" min="0" />
+                    </div>
+                    <div class="fg">
+                        <label>Prix unitaire ($)</label>
+                        <input type="number" id="bd-price" placeholder="2000" step="any" min="0" />
+                        <div class="hint">Prix de la crypto au moment de l'achat</div>
+                    </div>
+                </div>
+                <div class="confirm-panel" id="cp-buy-dca">
+                    <div class="confirm-title">✅ Vérification</div>
+                    <div id="cd-buy-dca"></div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-outline" onclick="resetForm('buy-dca')">Réinitialiser</button>
+                    <button class="btn btn-primary" id="bs-buy-dca" onclick="handleDCA('buy')">💰 Enregistrer l'achat</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ SELL DCA ══ -->
+        <div class="page" id="page-sell-dca">
+            <div class="page-header">
+                <div class="page-title">📉 Vente DCA</div>
+                <div class="page-sub">Enregistre une vente dans ta stratégie DCA</div>
+            </div>
+            <div class="card">
+                <div class="card-title">📝 Détails de la vente</div>
+                <div class="form-grid">
+                    <div class="fg">
+                        <label>Crypto</label>
+                        <input type="text" id="sd-crypto" placeholder="BTC, ETH, SOL…" oninput="this.value=this.value.toUpperCase()" />
+                    </div>
+                    <div class="fg">
+                        <label>Date de vente</label>
+                        <input type="date" id="sd-date" />
+                    </div>
+                    <div class="fg">
+                        <label>Quantité vendue</label>
+                        <input type="number" id="sd-qty" placeholder="0.3" step="any" min="0" />
+                    </div>
+                    <div class="fg">
+                        <label>Montant total ($)</label>
+                        <input type="number" id="sd-amount" placeholder="700" step="any" min="0" />
+                    </div>
+                    <div class="fg">
+                        <label>Prix de vente ($)</label>
+                        <input type="number" id="sd-price" placeholder="2333" step="any" min="0" />
+                    </div>
+                </div>
+                <div class="confirm-panel" id="cp-sell-dca">
+                    <div class="confirm-title">✅ Vérification</div>
+                    <div id="cd-sell-dca"></div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-outline" onclick="resetForm('sell-dca')">Réinitialiser</button>
+                    <button class="btn btn-primary" id="bs-sell-dca" onclick="handleDCA('sell')">📉 Enregistrer la vente</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ TRADING POSITIONS ══ -->
+        <div class="page" id="page-trading-pos">
+            <div class="page-header">
+                <div class="page-header-row">
+                    <div>
+                        <div class="page-title">⚡ Positions Trading</div>
+                        <div class="page-sub">Toutes tes positions ouvertes</div>
+                    </div>
+                    <button class="btn-refresh" id="btn-rtp" onclick="loadTradingPos()">🔄 Actualiser</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Code</th><th>Date</th><th>Crypto</th><th>Quantité</th><th>Prix Achat</th><th>Total $</th><th>Objectif</th><th>Statut</th></tr></thead>
+                        <tbody id="tb-tpos"><tr><td colspan="8"><div class="empty-state"><div class="ei">📭</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ BUY TRADING ══ -->
+        <div class="page" id="page-buy-trading">
+            <div class="page-header">
+                <div class="page-title">🚀 Achat Trading</div>
+                <div class="page-sub">Ouvre une nouvelle position de trading</div>
+            </div>
+            <div class="card">
+                <div class="card-title">📝 Détails de la position</div>
+                <div class="form-grid">
+                    <div class="fg">
+                        <label>Crypto</label>
+                        <input type="text" id="bt-crypto" placeholder="BTC, ETH, SOL…" oninput="this.value=this.value.toUpperCase()" />
+                    </div>
+                    <div class="fg">
+                        <label>Date d'achat</label>
+                        <input type="date" id="bt-date" />
+                    </div>
+                    <div class="fg">
+                        <label>Quantité</label>
+                        <input type="number" id="bt-qty" placeholder="0.5" step="any" min="0" oninput="calcUnit()" />
+                    </div>
+                    <div class="fg">
+                        <label>Prix d'achat total ($)</label>
+                        <input type="number" id="bt-total" placeholder="70000" step="any" min="0" oninput="calcUnit()" />
+                    </div>
+                    <div class="fg">
+                        <label>Objectif de gain (%)</label>
+                        <input type="number" id="bt-target" placeholder="10" step="any" min="0" />
+                        <div class="hint">% de hausse visé avant revente</div>
+                    </div>
+                    <div class="fg">
+                        <label>Prix unitaire — calculé auto</label>
+                        <input type="text" id="bt-unit" readonly placeholder="—" />
+                    </div>
+                </div>
+                <div class="confirm-panel" id="cp-buy-trading">
+                    <div class="confirm-title">✅ Vérification</div>
+                    <div id="cd-buy-trading"></div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-outline" onclick="resetForm('buy-trading')">Réinitialiser</button>
+                    <button class="btn btn-primary" id="bs-buy-trading" onclick="handleBuyTrading()">🚀 Ouvrir la position</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ SELL TRADING ══ -->
+        <div class="page" id="page-sell-trading">
+            <div class="page-header">
+                <div class="page-title">🔴 Clôturer une position</div>
+                <div class="page-sub">Ferme une position de trading existante</div>
+            </div>
+            <div class="card">
+                <div class="card-title">📝 Détails de la clôture</div>
+                <div class="form-grid">
+                    <div class="fg">
+                        <label>Code de la position</label>
+                        <input type="text" id="st-code" placeholder="T-2025-001" />
+                        <div class="hint">Visible dans l'onglet Positions Trading</div>
+                    </div>
+                    <div class="fg">
+                        <label>Date de vente</label>
+                        <input type="date" id="st-date" />
+                    </div>
+                    <div class="fg">
+                        <label>Prix de vente total ($)</label>
+                        <input type="number" id="st-price" placeholder="150000" step="any" min="0" />
+                    </div>
+                </div>
+                <div class="confirm-panel" id="cp-sell-trading">
+                    <div class="confirm-title">✅ Vérification</div>
+                    <div id="cd-sell-trading"></div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-outline" onclick="resetForm('sell-trading')">Réinitialiser</button>
+                    <button class="btn btn-primary" id="bs-sell-trading" onclick="handleSellTrading()">🔴 Clôturer la position</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════
+const CFG = {
+    get url()  { return (localStorage.getItem('cesar_url')  || '').replace(/\/$/, ''); },
+    get key()  { return localStorage.getItem('cesar_key')  || ''; },
+    ep: {
+        portfolio:        '/cesar-portfolio',
+        dca:              '/cesar-dca',
+        tradingPositions: '/cesar-trading-positions',
+        tradingBuy:       '/cesar-trading-buy',
+        tradingSell:      '/cesar-trading-sell',
+    }
+};
+
+// Per-form step state
+const fstate = {};
+
+// ══════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════
+function nav(id) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + id)?.classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => {
+        if (n.getAttribute('onclick')?.includes("'" + id + "'")) n.classList.add('active');
+    });
+    // Pre-fill today's date
+    const today = new Date().toISOString().slice(0, 10);
+    ['bd-date','sd-date','bt-date','st-date'].forEach(i => {
+        const el = document.getElementById(i);
+        if (el && !el.value) el.value = today;
+    });
+}
+
+// ══════════════════════════════════════════
+// CLOCK
+// ══════════════════════════════════════════
+function tick() {
+    document.getElementById('clock').textContent =
+        new Date().toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+setInterval(tick, 1000); tick();
+
+// ══════════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════════
+function openSettings() {
+    document.getElementById('cfg-url').value = CFG.url;
+    document.getElementById('cfg-key').value = CFG.key;
+    document.getElementById('settingsModal').classList.add('open');
+}
+function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
+function saveSettings() {
+    localStorage.setItem('cesar_url', document.getElementById('cfg-url').value.trim().replace(/\/$/, ''));
+    localStorage.setItem('cesar_key', document.getElementById('cfg-key').value.trim());
+    closeSettings();
+    notify('✅ Configuration sauvegardée', 'success');
+}
+
+// ══════════════════════════════════════════
+// API
+// ══════════════════════════════════════════
+async function api(endpoint, method = 'GET', data = null) {
+    if (!CFG.url) { notify('⚠️ Configure l\'URL n8n dans ⚙️ Config', 'error'); openSettings(); return null; }
+    const opts = {
+        method,
+        headers: { 'Content-Type': 'application/json', ...(CFG.key ? { Authorization: 'Bearer ' + CFG.key } : {}) },
+        ...(data ? { body: JSON.stringify(data) } : {})
+    };
+    const res = await fetch(CFG.url + endpoint, opts);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const txt = await res.text();
+    return txt ? JSON.parse(txt) : {};
+}
+
+// ══════════════════════════════════════════
+// PORTFOLIO
+// ══════════════════════════════════════════
+async function loadPortfolio() {
+    const btn = document.getElementById('btn-rp');
+    btn.innerHTML = '<span class="spin"></span> Chargement…'; btn.disabled = true;
+    try {
+        const d = await api(CFG.ep.portfolio);
+        if (!d) return;
+        const dca  = d.dca  || [];
+        const trad = d.trading || [];
+
+        // DCA table
+        const tbDCA = document.getElementById('tb-dca');
+        tbDCA.innerHTML = dca.length ? dca.map(r => `
+            <tr>
+                <td><strong>${v(r,'crypto','Crypto')}</strong></td>
+                <td>${v(r,'quantite','Quantité')}</td>
+                <td>${fmtUSD(v(r,'prix_moyen','Prix achat ($)'))}</td>
+                <td><strong>${fmtUSD(v(r,'total','Total $'))}</strong></td>
+            </tr>`).join('') :
+            '<tr><td colspan="4"><div class="empty-state"><div class="ei">📭</div><p>Aucune position DCA active</p></div></td></tr>';
+
+        // Trading table
+        const tbT = document.getElementById('tb-trad');
+        tbT.innerHTML = trad.length ? trad.map(r => `
+            <tr>
+                <td><span class="code-tag">${v(r,'code','Code')}</span></td>
+                <td>${v(r,'date','Date')}</td>
+                <td><strong>${v(r,'crypto','Crypto')}</strong></td>
+                <td>${v(r,'quantite','Quantité')}</td>
+                <td>${fmtUSD(v(r,'prix','Prix achat ($)'))}</td>
+                <td><strong>${fmtUSD(v(r,'total','Total $'))}</strong></td>
+                <td style="color:var(--green)">${v(r,'objectif','Objectif')}</td>
+            </tr>`).join('') :
+            '<tr><td colspan="7"><div class="empty-state"><div class="ei">💤</div><p>Aucune position trading ouverte</p></div></td></tr>';
+
+        // Stats
+        const tot = [...dca,...trad].reduce((s,r) => s + parseFloat(v(r,'total','Total $') || 0), 0);
+        document.getElementById('st-total').textContent = fmtUSD(tot);
+        document.getElementById('st-dca').textContent   = dca.length;
+        document.getElementById('st-trad').textContent  = trad.length;
+        notify('✅ Portefeuille actualisé', 'success');
+    } catch(e) { notify('❌ ' + e.message, 'error'); }
+    finally { btn.innerHTML = '🔄 Actualiser'; btn.disabled = false; }
+}
+
+// ══════════════════════════════════════════
+// TRADING POSITIONS
+// ══════════════════════════════════════════
+async function loadTradingPos() {
+    const btn = document.getElementById('btn-rtp');
+    btn.innerHTML = '<span class="spin"></span>'; btn.disabled = true;
+    try {
+        const d = await api(CFG.ep.tradingPositions);
+        if (!d) return;
+        const rows = Array.isArray(d) ? d : (d.positions || []);
+        const tb = document.getElementById('tb-tpos');
+        tb.innerHTML = rows.length ? rows.map(r => `
+            <tr>
+                <td><span class="code-tag">${v(r,'code','Code')}</span></td>
+                <td>${v(r,'date','Date')}</td>
+                <td><strong>${v(r,'crypto','Crypto')}</strong></td>
+                <td>${v(r,'quantite','Quantité')}</td>
+                <td>${fmtUSD(v(r,'prix','Prix achat ($)'))}</td>
+                <td>${fmtUSD(v(r,'total','Total $'))}</td>
+                <td style="color:var(--green)">${v(r,'objectif','Objectif')}</td>
+                <td><span class="badge badge-open">Ouverte</span></td>
+            </tr>`).join('') :
+            '<tr><td colspan="8"><div class="empty-state"><div class="ei">💤</div><p>Aucune position ouverte</p></div></td></tr>';
+        notify('✅ Positions actualisées', 'success');
+    } catch(e) { notify('❌ ' + e.message, 'error'); }
+    finally { btn.innerHTML = '🔄 Actualiser'; btn.disabled = false; }
+}
+
+// ══════════════════════════════════════════
+// DCA (achat & vente partagés)
+// ══════════════════════════════════════════
+function handleDCA(type) {
+    const pfx   = type === 'buy' ? 'bd' : 'sd';
+    const fId   = type === 'buy' ? 'buy-dca' : 'sell-dca';
+    const label = type === 'buy' ? 'Achat'   : 'Vente';
+    const state = fstate[fId] || 'fill';
+
+    const crypto = document.getElementById(pfx+'-crypto').value.trim().toUpperCase();
+    const date   = document.getElementById(pfx+'-date').value;
+    const qty    = parseFloat(document.getElementById(pfx+'-qty').value);
+    const amount = parseFloat(document.getElementById(pfx+'-amount').value);
+    const price  = parseFloat(document.getElementById(pfx+'-price').value);
+
+    if (state === 'fill') {
+        if (!crypto || !date || isNaN(qty) || isNaN(amount) || isNaN(price)) {
+            notify('⚠️ Tous les champs sont requis', 'error'); return;
+        }
+        document.getElementById('cd-'+fId).innerHTML = rows({
+            'Crypto': crypto, 'Date': fmtDate(date),
+            'Quantité': qty, 'Montant': fmtUSD(amount), 'Prix unitaire': fmtUSD(price)
+        });
+        document.getElementById('cp-'+fId).classList.add('show');
+        const btn = document.getElementById('bs-'+fId);
+        btn.innerHTML = '✅ Confirmer et enregistrer'; btn.className = 'btn btn-success';
+        fstate[fId] = 'confirm';
+    } else {
+        submitDCA(type, pfx, fId, label, crypto, date, qty, amount, price);
+    }
+}
+
+async function submitDCA(type, pfx, fId, label, crypto, date, qty, amount, price) {
+    const btn = document.getElementById('bs-'+fId);
+    btn.innerHTML = '<span class="spin"></span> Envoi…'; btn.disabled = true;
+    const dp = date.split('-');
+    const fd = `${dp[2]} ${dp[1]} ${dp[0]}`;
+    try {
+        const r = await api(CFG.ep.dca, 'POST', {
+            type: label,
+            message: `${label} ${crypto} / ${fd} / ${qty} / ${amount} / ${price}`,
+            data: { type: label, crypto, date: fd, quantite: qty, montant: amount, prix: price }
+        });
+        if (r !== null) { notify(`✅ ${label} DCA enregistré !`, 'success'); resetForm(fId); }
+    } catch(e) { notify('❌ ' + e.message, 'error'); btn.disabled = false; btn.innerHTML = '✅ Confirmer et enregistrer'; }
+}
+
+// ══════════════════════════════════════════
+// BUY TRADING
+// ══════════════════════════════════════════
+function calcUnit() {
+    const q = parseFloat(document.getElementById('bt-qty')?.value);
+    const t = parseFloat(document.getElementById('bt-total')?.value);
+    const el = document.getElementById('bt-unit');
+    if (el) el.value = (q > 0 && t > 0) ? fmtUSD(t / q) : '—';
+}
+
+function handleBuyTrading() {
+    const state  = fstate['buy-trading'] || 'fill';
+    const crypto = document.getElementById('bt-crypto').value.trim().toUpperCase();
+    const date   = document.getElementById('bt-date').value;
+    const qty    = parseFloat(document.getElementById('bt-qty').value);
+    const total  = parseFloat(document.getElementById('bt-total').value);
+    const target = parseFloat(document.getElementById('bt-target').value);
+
+    if (state === 'fill') {
+        if (!crypto || !date || isNaN(qty) || isNaN(total) || isNaN(target)) {
+            notify('⚠️ Tous les champs sont requis', 'error'); return;
+        }
+        document.getElementById('cd-buy-trading').innerHTML = rows({
+            'Crypto': crypto, 'Date': fmtDate(date),
+            'Quantité': qty, 'Prix total': fmtUSD(total),
+            'Prix unitaire': fmtUSD(total / qty), 'Objectif': '+' + target + '%'
+        });
+        document.getElementById('cp-buy-trading').classList.add('show');
+        const btn = document.getElementById('bs-buy-trading');
+        btn.innerHTML = '✅ Confirmer et ouvrir'; btn.className = 'btn btn-success';
+        fstate['buy-trading'] = 'confirm';
+    } else {
+        submitBuyTrading(crypto, date, qty, total, target);
+    }
+}
+
+async function submitBuyTrading(crypto, date, qty, total, target) {
+    const btn = document.getElementById('bs-buy-trading');
+    btn.innerHTML = '<span class="spin"></span> Envoi…'; btn.disabled = true;
+    const dp = date.split('-');
+    const fd = `${dp[2]} ${dp[1]} ${dp[0]}`;
+    try {
+        const r = await api(CFG.ep.tradingBuy, 'POST', {
+            message: `${crypto} / ${fd} / ${qty} / ${total} / ${target}`,
+            data: { crypto, date: fd, quantite: qty, prixTotal: total, objectif: target }
+        });
+        if (r !== null) { notify('✅ Position trading ouverte !', 'success'); resetForm('buy-trading'); }
+    } catch(e) { notify('❌ ' + e.message, 'error'); btn.disabled = false; btn.innerHTML = '✅ Confirmer et ouvrir'; }
+}
+
+// ══════════════════════════════════════════
+// SELL TRADING
+// ══════════════════════════════════════════
+function handleSellTrading() {
+    const state = fstate['sell-trading'] || 'fill';
+    const code  = document.getElementById('st-code').value.trim();
+    const date  = document.getElementById('st-date').value;
+    const price = parseFloat(document.getElementById('st-price').value);
+
+    if (state === 'fill') {
+        if (!code || !date || isNaN(price)) { notify('⚠️ Tous les champs sont requis', 'error'); return; }
+        document.getElementById('cd-sell-trading').innerHTML = rows({
+            'Code position': code, 'Date de vente': fmtDate(date), 'Prix de vente': fmtUSD(price)
+        });
+        document.getElementById('cp-sell-trading').classList.add('show');
+        const btn = document.getElementById('bs-sell-trading');
+        btn.innerHTML = '✅ Confirmer la clôture'; btn.className = 'btn btn-danger';
+        fstate['sell-trading'] = 'confirm';
+    } else {
+        submitSellTrading(code, date, price);
+    }
+}
+
+async function submitSellTrading(code, date, price) {
+    const btn = document.getElementById('bs-sell-trading');
+    btn.innerHTML = '<span class="spin"></span> Envoi…'; btn.disabled = true;
+    const dp = date.split('-');
+    const fd = `${dp[2]} ${dp[1]} ${dp[0]}`;
+    try {
+        const r = await api(CFG.ep.tradingSell, 'POST', {
+            message: `${code} / ${fd} / ${price}`,
+            data: { code, dateVente: fd, prixVente: price }
+        });
+        if (r !== null) { notify('✅ Position clôturée !', 'success'); resetForm('sell-trading'); }
+    } catch(e) { notify('❌ ' + e.message, 'error'); btn.disabled = false; btn.innerHTML = '✅ Confirmer la clôture'; }
+}
+
+// ══════════════════════════════════════════
+// RESET
+// ══════════════════════════════════════════
+const FORMS = {
+    'buy-dca':     { btn:'bs-buy-dca',      txt:'💰 Enregistrer l\'achat',  cls:'btn-primary', fields:['bd-crypto','bd-qty','bd-amount','bd-price'] },
+    'sell-dca':    { btn:'bs-sell-dca',     txt:'📉 Enregistrer la vente',  cls:'btn-primary', fields:['sd-crypto','sd-qty','sd-amount','sd-price'] },
+    'buy-trading': { btn:'bs-buy-trading',  txt:'🚀 Ouvrir la position',    cls:'btn-primary', fields:['bt-crypto','bt-qty','bt-total','bt-target','bt-unit'] },
+    'sell-trading':{ btn:'bs-sell-trading', txt:'🔴 Clôturer la position',  cls:'btn-primary', fields:['st-code','st-price'] },
+};
+
+function resetForm(fId) {
+    fstate[fId] = 'fill';
+    document.getElementById('cp-'+fId)?.classList.remove('show');
+    const cfg = FORMS[fId];
+    if (cfg) {
+        const btn = document.getElementById(cfg.btn);
+        btn.innerHTML = cfg.txt; btn.className = 'btn ' + cfg.cls; btn.disabled = false;
+        cfg.fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    }
+}
+
+// ══════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════
+function v(obj, ...keys) { for (const k of keys) if (obj[k] != null) return obj[k]; return '—'; }
+
+function rows(data) {
+    return Object.entries(data).map(([k,val]) =>
+        `<div class="confirm-row"><span class="ck">${k}</span><span class="cv">${val}</span></div>`
+    ).join('');
+}
+
+function fmtUSD(n) {
+    const num = parseFloat(n);
+    if (isNaN(num)) return '—';
+    return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' $';
+}
+
+function fmtDate(iso) {
+    if (!iso) return '—';
+    const [y,m,d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+}
+
+let notifTimer;
+function notify(msg, type = 'info') {
+    const el = document.getElementById('notif');
+    el.textContent = msg; el.className = `notif ${type} show`;
+    clearTimeout(notifTimer);
+    notifTimer = setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+// ── Init ──
+nav('portfolio');
+if (!CFG.url) {
+    setTimeout(() => notify('⚙️ Configure l\'URL n8n pour commencer', 'info'), 600);
+}
+</script>
+</body>
+</html>
