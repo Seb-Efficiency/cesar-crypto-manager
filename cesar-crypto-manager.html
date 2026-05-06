@@ -523,15 +523,15 @@
                     </div>
                     <div class="fg">
                         <label>Quantité <span class="calc-tag" id="bd-qty-tag"></span></label>
-                        <input type="number" id="bd-qty" placeholder="0.5" step="any" min="0" oninput="calcDCA('bd')" />
+                        <input type="number" id="bd-qty" placeholder="0.5" step="any" min="0" oninput="this.classList.remove('calculated'); calcDCA('bd')" />
                     </div>
                     <div class="fg">
                         <label>Montant total ($) <span class="calc-tag" id="bd-amount-tag"></span></label>
-                        <input type="number" id="bd-amount" placeholder="1000" step="any" min="0" oninput="calcDCA('bd')" />
+                        <input type="number" id="bd-amount" placeholder="1000" step="any" min="0" oninput="this.classList.remove('calculated'); calcDCA('bd')" />
                     </div>
                     <div class="fg">
                         <label>Prix unitaire ($) <span class="calc-tag" id="bd-price-tag"></span></label>
-                        <input type="number" id="bd-price" placeholder="2000" step="any" min="0" oninput="calcDCA('bd')" />
+                        <input type="number" id="bd-price" placeholder="2000" step="any" min="0" oninput="this.classList.remove('calculated'); calcDCA('bd')" />
                         <div class="hint">Remplis 2 des 3 champs — le 3ᵉ est calculé automatiquement</div>
                     </div>
                 </div>
@@ -565,15 +565,15 @@
                     </div>
                     <div class="fg">
                         <label>Quantité <span class="calc-tag" id="sd-qty-tag"></span></label>
-                        <input type="number" id="sd-qty" placeholder="0.3" step="any" min="0" oninput="calcDCA('sd')" />
+                        <input type="number" id="sd-qty" placeholder="0.3" step="any" min="0" oninput="this.classList.remove('calculated'); calcDCA('sd')" />
                     </div>
                     <div class="fg">
                         <label>Montant total ($) <span class="calc-tag" id="sd-amount-tag"></span></label>
-                        <input type="number" id="sd-amount" placeholder="700" step="any" min="0" oninput="calcDCA('sd')" />
+                        <input type="number" id="sd-amount" placeholder="700" step="any" min="0" oninput="this.classList.remove('calculated'); calcDCA('sd')" />
                     </div>
                     <div class="fg">
                         <label>Prix de vente ($) <span class="calc-tag" id="sd-price-tag"></span></label>
-                        <input type="number" id="sd-price" placeholder="2333" step="any" min="0" oninput="calcDCA('sd')" />
+                        <input type="number" id="sd-price" placeholder="2333" step="any" min="0" oninput="this.classList.remove('calculated'); calcDCA('sd')" />
                         <div class="hint">Remplis 2 des 3 champs — le 3ᵉ est calculé automatiquement</div>
                     </div>
                 </div>
@@ -673,15 +673,15 @@
                     </div>
                     <div class="fg">
                         <label>Quantité <span class="calc-tag" id="qb-qty-tag"></span></label>
-                        <input type="number" id="qb-qty" placeholder="0.5" step="any" min="0" oninput="calcQuickBuy()">
+                        <input type="number" id="qb-qty" placeholder="0.5" step="any" min="0" oninput="this.classList.remove('calculated'); calcQuickBuy()">
                     </div>
                     <div class="fg">
                         <label>Total ($) <span class="calc-tag" id="qb-total-tag"></span></label>
-                        <input type="number" id="qb-total" placeholder="1000" step="any" min="0" oninput="calcQuickBuy()">
+                        <input type="number" id="qb-total" placeholder="1000" step="any" min="0" oninput="this.classList.remove('calculated'); calcQuickBuy()">
                     </div>
                     <div class="fg">
                         <label>Prix unitaire ($) <span class="calc-tag" id="qb-price-tag"></span></label>
-                        <input type="number" id="qb-price" placeholder="50000" step="any" min="0" oninput="calcQuickBuy()">
+                        <input type="number" id="qb-price" placeholder="50000" step="any" min="0" oninput="this.classList.remove('calculated'); calcQuickBuy()">
                         <div class="hint">2 des 3 champs suffisent</div>
                     </div>
                     <div class="fg">
@@ -1149,20 +1149,28 @@ function calcQuickBuy() {
     const qEl = document.getElementById('qb-qty');
     const tEl = document.getElementById('qb-total');
     const pEl = document.getElementById('qb-price');
+
+    // Vide les champs auto-calculés
+    [qEl, tEl, pEl].forEach(el => {
+        if (el.classList.contains('calculated')) { el.value = ''; el.classList.remove('calculated'); }
+    });
+
     const q = parseFloat(qEl.value) || null;
     const t = parseFloat(tEl.value) || null;
     const p = parseFloat(pEl.value) || null;
+
     [['qty',qEl],['total',tEl],['price',pEl]].forEach(([key, el]) => {
-        el.classList.remove('calculated');
         const tag = document.getElementById('qb-'+key+'-tag');
         if (tag) { tag.textContent = ''; tag.classList.remove('show'); }
     });
+
     function setC(key, el, val, dec) {
         el.value = val.toFixed(dec);
         el.classList.add('calculated');
         const tag = document.getElementById('qb-'+key+'-tag');
         if (tag) { tag.textContent = 'calculé'; tag.classList.add('show'); }
     }
+
     if (q && t && !p)      setC('price', pEl, t / q, 2);
     else if (q && p && !t) setC('total', tEl, q * p, 2);
     else if (t && p && !q) setC('qty',   qEl, t / p, 8);
@@ -1315,22 +1323,27 @@ function calcDCA(pfx) {
     const qEl = document.getElementById(pfx+'-qty');
     const aEl = document.getElementById(pfx+'-amount');
     const pEl = document.getElementById(pfx+'-price');
+
+    // Vide les champs auto-calculés (l'utilisateur a changé une saisie manuelle)
+    [qEl, aEl, pEl].forEach(el => {
+        if (el.classList.contains('calculated')) { el.value = ''; el.classList.remove('calculated'); }
+    });
+
     const q = parseFloat(qEl.value) || null;
     const a = parseFloat(aEl.value) || null;
     const p = parseFloat(pEl.value) || null;
 
-    // Reset indicators
+    // Reset tags
     [['qty',qEl],['amount',aEl],['price',pEl]].forEach(([key, el]) => {
-        el.classList.remove('calculated');
         const tag = document.getElementById(pfx+'-'+key+'-tag');
-        tag.textContent = ''; tag.classList.remove('show');
+        if (tag) { tag.textContent = ''; tag.classList.remove('show'); }
     });
 
     function setCalc(key, el, val, decimals) {
         el.value = val.toFixed(decimals);
         el.classList.add('calculated');
         const tag = document.getElementById(pfx+'-'+key+'-tag');
-        tag.textContent = 'calculé'; tag.classList.add('show');
+        if (tag) { tag.textContent = 'calculé'; tag.classList.add('show'); }
     }
 
     if (q && a && !p)       setCalc('price',  pEl, a / q, 2);
