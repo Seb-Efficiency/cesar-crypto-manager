@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>César — Crypto Manager</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         :root {
             --bg-primary: #0d1117;
@@ -24,7 +26,8 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
-            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
         }
@@ -66,7 +69,7 @@
         .btn-icon:hover { border-color: var(--gold); color: var(--gold); }
 
         /* ── LAYOUT ── */
-        .app-layout { display: flex; flex: 1; }
+        .app-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 
         /* ── SIDEBAR ── */
         .sidebar {
@@ -99,8 +102,8 @@
         .nav-icon { font-size: 15px; width: 20px; text-align: center; }
 
         /* ── MAIN ── */
-        .main { flex: 1; padding: 28px; overflow-y: auto; }
-        .page { display: none; max-width: 960px; }
+        .main { flex: 1; padding: 18px 20px; overflow-y: auto; }
+        .page { display: none; max-width: 1200px; }
         .page.active { display: block; }
 
         .page-header { margin-bottom: 24px; }
@@ -137,21 +140,60 @@
             display: flex; align-items: center; gap: 8px;
         }
 
+        /* ── CHARTS ── */
+        .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+        .chart-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .chart-card .card-title { margin-bottom: 12px; }
+        .chart-card canvas { max-height: 260px; }
+        .chart-placeholder {
+            display: flex; align-items: center; justify-content: center;
+            height: 200px; color: var(--text-secondary); font-size: 13px;
+            flex-direction: column; gap: 8px;
+        }
+        .chart-placeholder .ei { font-size: 28px; }
+        @media(max-width:700px) { .charts-row { grid-template-columns: 1fr; } }
+
+        /* ── TABS ── */
+        .tab-bar {
+            display: flex; gap: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 10px; padding: 4px;
+            margin-bottom: 18px;
+        }
+        .tab-btn {
+            flex: 1; padding: 8px 16px;
+            border: none; border-radius: 7px;
+            font-size: 13px; font-weight: 600;
+            cursor: pointer; background: transparent;
+            color: var(--text-secondary); transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            box-shadow: 0 1px 4px rgba(0,0,0,.3);
+        }
+
         /* ── TABLE ── */
-        .table-wrap { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .table-wrap { overflow-x: hidden; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
         thead th {
-            text-align: left; padding: 9px 12px;
+            text-align: left; padding: 6px 8px;
             background: var(--bg-tertiary);
             color: var(--text-secondary);
-            font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
+            font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
+            white-space: nowrap;
         }
         thead th:first-child { border-radius: 8px 0 0 8px; }
         thead th:last-child { border-radius: 0 8px 8px 0; }
         tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
         tbody tr:hover { background: var(--gold-bg); }
         tbody tr:last-child { border-bottom: none; }
-        tbody td { padding: 11px 12px; }
+        tbody td { padding: 7px 8px; }
 
         .code-tag { font-family: monospace; color: var(--gold); font-size: 12px; }
         .badge {
@@ -185,6 +227,10 @@
         input::placeholder { color: var(--text-secondary); opacity: 0.5; }
         input[readonly] { opacity: 0.5; cursor: default; }
         .hint { font-size: 11px; color: var(--text-secondary); }
+        .pf-filters { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+        .pf-filter-group { display:flex; gap:2px; background:var(--bg-tertiary); border-radius:8px; padding:3px; }
+        .pf-filter-btn { padding:4px 12px; border-radius:6px; border:none; background:transparent; color:var(--text-secondary); font-size:11px; font-weight:700; cursor:pointer; transition:all .15s; text-transform:uppercase; letter-spacing:.4px; }
+        .pf-filter-btn.active { background:var(--bg-card,var(--bg-secondary)); color:var(--gold); }
         .calc-tag {
             font-size: 10px; color: var(--gold);
             background: rgba(201,150,62,.15);
@@ -246,7 +292,6 @@
         }
         .btn-refresh:hover { border-color: var(--gold); color: var(--gold); }
         .btn-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
-
         .form-actions {
             display: flex; justify-content: flex-end; gap: 10px;
             margin-top: 20px; padding-top: 18px;
@@ -301,18 +346,6 @@
         .ep { display: flex; gap: 8px; align-items: center; }
         .ep code { color: var(--gold); background: var(--bg-tertiary); padding: 2px 7px; border-radius: 4px; font-size: 12px; white-space: nowrap; }
 
-        /* ── SETUP BANNER ── */
-        .setup-banner {
-            background: rgba(201,150,62,.1);
-            border: 1px solid var(--border-gold);
-            border-radius: 10px;
-            padding: 13px 16px;
-            margin-bottom: 20px;
-            font-size: 13px; color: var(--gold);
-            display: flex; align-items: center; gap: 10px;
-        }
-        .setup-banner a { color: var(--gold); text-decoration: underline; cursor: pointer; }
-
         /* ── SELL INLINE ── */
         .sell-form-inner {
             background: rgba(192,57,43,.05);
@@ -341,13 +374,104 @@
 
         /* ── MISC ── */
         .btn-sm { padding: 7px 12px !important; font-size: 12px !important; }
+        .nowrap { white-space: nowrap; }
+        .btn-sell { background: rgba(139,148,158,.1); border: 1px solid rgba(139,148,158,.35); color: var(--text-secondary); }
+        .btn-sell:hover { border-color: var(--gold); color: var(--gold); }
+
+        /* ── SORT / FILTER TABLE ── */
+        .th-wrap { display:flex; align-items:center; gap:3px; white-space:nowrap; }
+        .th-wrap > span:first-child { flex:1; }
+        .th-sort-btn, .th-filt-btn {
+            cursor:pointer; color:var(--text-secondary); font-size:10px;
+            padding:1px 4px; border-radius:3px; user-select:none;
+            transition:all 0.15s; flex-shrink:0; line-height:1.4;
+        }
+        .th-sort-btn:hover, .th-filt-btn:hover { color:var(--gold); background:rgba(201,150,62,.12); }
+        .th-sort-btn.active { color:var(--gold); }
+        .th-filt-btn.active { color:var(--gold); }
+        /* Filter popup */
+        .tbl-fp {
+            position:fixed; z-index:9999;
+            background:var(--bg-secondary); border:1px solid var(--border-gold);
+            border-radius:10px; padding:12px; width:220px;
+            box-shadow:0 8px 28px rgba(0,0,0,.55);
+        }
+        .tbl-fp-hdr { font-size:10px; font-weight:700; color:var(--text-secondary);
+            text-transform:uppercase; letter-spacing:.8px; margin-bottom:8px; }
+        .tbl-fp-search {
+            width:100%; background:var(--bg-tertiary); border:1px solid var(--border);
+            border-radius:6px; color:var(--text-primary); font-size:12px;
+            padding:5px 9px; margin-bottom:6px; outline:none; font-family:inherit;
+        }
+        .tbl-fp-search:focus { border-color:var(--gold); }
+        .tbl-fp-acts { display:flex; gap:5px; margin-bottom:7px; }
+        .tbl-fp-acts button {
+            flex:1; background:var(--bg-tertiary); border:1px solid var(--border);
+            border-radius:5px; color:var(--text-secondary); font-size:11px;
+            padding:3px 0; cursor:pointer; font-family:inherit;
+        }
+        .tbl-fp-acts button:hover { border-color:var(--gold); color:var(--gold); }
+        .tbl-fp-list { max-height:200px; overflow-y:auto; margin-bottom:8px; }
+        .tbl-fp-item {
+            display:flex; align-items:center; gap:7px; padding:4px 3px;
+            cursor:pointer; font-size:12px; border-radius:4px;
+        }
+        .tbl-fp-item:hover { background:var(--bg-tertiary); }
+        .tbl-fp-item input[type=checkbox] { cursor:pointer; accent-color:var(--gold); flex-shrink:0; }
+        .tbl-fp-ok {
+            width:100%; background:var(--gold-bg); border:1px solid var(--border-gold);
+            border-radius:6px; color:var(--gold); font-size:12px; padding:5px 10px;
+            cursor:pointer; transition:all .15s; font-family:inherit;
+        }
+        .tbl-fp-ok:hover { background:var(--gold); color:var(--bg-primary); }
+
+        /* ── IMPORT TABLE ── */
+        .itbl {
+            padding: 4px 6px; font-size: 11px;
+            background: var(--bg-tertiary); border: 1px solid var(--border);
+            border-radius: 4px; color: var(--text-primary); outline: none; width: 100%;
+        }
+        .itbl:focus { border-color: var(--gold); }
+        #import-table thead th { font-size: 10px; padding: 7px 8px; }
+        #import-table tbody td { padding: 4px 6px; vertical-align: middle; }
+        tr.ir-success td { background: rgba(39,174,96,.06); }
+        tr.ir-error   td { background: rgba(192,57,43,.06); }
+
+        /* ── OBJECTIFS ── */
+        .obj-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); font-size: 12px; }
+        .obj-table tr:last-child td { border-bottom: none; }
+        .obj-table tr:hover td { background: var(--gold-bg); }
+        .obj-detail-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); font-size: 12px; }
+        .obj-detail-table tr:last-child td { border-bottom: none; }
+        .obj-detail-table tr:hover td { background: var(--gold-bg); }
+        .obj-dot { display:inline-block; width:9px; height:9px; border-radius:50%; vertical-align:middle; margin-right:6px; flex-shrink:0; }
+        .obj-progress-wrap { position:relative; height:6px; background:var(--bg-tertiary); border-radius:3px; overflow:hidden; margin-top:3px; }
+        .obj-progress-tgt  { position:absolute; top:0; left:0; height:100%; background:rgba(201,150,62,.25); border-radius:3px; }
+        .obj-progress-act  { position:absolute; top:0; left:0; height:100%; border-radius:3px; transition:width .4s; }
+
+        /* ── ANALYSE ── */
+        /* Les containers sont en position:absolute dans un wrapper relatif à hauteur fixe.
+           Ainsi le canvas ne peut pas provoquer de reflow du parent → pas de boucle ResizeObserver
+           même à un niveau de zoom navigateur non-100% (devicePixelRatio fractionnaire). */
+        .anlz-chart-wrap { position:relative; width:100%; overflow:hidden; }
+        #analyse-chart-container { position:absolute; top:0; left:0; right:0; bottom:0; }
+        #analyse-rsi-container   { position:absolute; top:0; left:0; right:0; bottom:0; }
+        .analyse-interval-bar { display:flex; gap:5px; flex-wrap:wrap; }
+        .anlz-btn {
+            padding: 5px 14px; border-radius: 6px; border: 1px solid var(--border);
+            background: var(--bg-tertiary); color: var(--text-secondary);
+            font-size: 12px; font-weight: 700; cursor: pointer; transition: all .15s;
+            letter-spacing: .4px;
+        }
+        .anlz-btn:hover { border-color: var(--gold); color: var(--gold); }
+        .anlz-btn.active { background: var(--gold); color: #0d1117; border-color: var(--gold); }
 
         /* ── RESPONSIVE ── */
         @media (max-width: 700px) {
             .sidebar { width: 54px; }
             .nav-item span:not(.nav-icon) { display: none; }
             .nav-group-label { display: none; }
-            .main { padding: 16px; }
+            .main { padding: 10px 12px; }
         }
     </style>
 </head>
@@ -386,6 +510,7 @@
             <div class="endpoints-list">
                 <div class="ep"><code>GET /cesar-portfolio</code><span>→ retourne positions DCA + Trading</span></div>
                 <div class="ep"><code>POST /cesar-dca</code><span>→ achat ou vente DCA</span></div>
+                <div class="ep"><code>GET /cesar-dca-history</code><span>→ historique des transactions DCA</span></div>
                 <div class="ep"><code>GET /cesar-trading-positions</code><span>→ positions trading ouvertes</span></div>
                 <div class="ep"><code>POST /cesar-trading-buy</code><span>→ ouvrir une position trading</span></div>
                 <div class="ep"><code>POST /cesar-trading-sell</code><span>→ clôturer une position trading</span></div>
@@ -422,33 +547,45 @@
     <!-- SIDEBAR -->
     <nav class="sidebar">
         <div class="nav-group">
-            <div class="nav-group-label">Aperçu</div>
+            <div class="nav-group-label">Général</div>
             <div class="nav-item active" onclick="nav('portfolio')">
                 <span class="nav-icon">📊</span><span>Portefeuille</span>
+            </div>
+            <div class="nav-item" onclick="nav('objectifs')">
+                <span class="nav-icon">🎯</span><span>Objectifs</span>
+            </div>
+            <div class="nav-item" onclick="nav('analyse')">
+                <span class="nav-icon">📉</span><span>Analyse</span>
             </div>
         </div>
         <div class="nav-group">
             <div class="nav-group-label">DCA</div>
+            <div class="nav-item" onclick="nav('dca-dash')">
+                <span class="nav-icon">📈</span><span>Dashboard DCA</span>
+            </div>
             <div class="nav-item" onclick="nav('buy-dca')">
                 <span class="nav-icon">💰</span><span>Achat DCA</span>
             </div>
             <div class="nav-item" onclick="nav('sell-dca')">
                 <span class="nav-icon">📉</span><span>Vente DCA</span>
             </div>
+            <div class="nav-item" onclick="nav('dca-hist')">
+                <span class="nav-icon">📋</span><span>Historique DCA</span>
+            </div>
         </div>
         <div class="nav-group">
             <div class="nav-group-label">Trading</div>
             <div class="nav-item" onclick="nav('trading-dash')">
-                <span class="nav-icon">📊</span><span>Dashboard</span>
+                <span class="nav-icon">⚡</span><span>Dashboard</span>
             </div>
             <div class="nav-item" onclick="nav('trading-pos')">
-                <span class="nav-icon">⚡</span><span>Positions</span>
+                <span class="nav-icon">🎯</span><span>Positions</span>
             </div>
-            <div class="nav-item" onclick="nav('buy-trading')">
-                <span class="nav-icon">🚀</span><span>Achat Trading</span>
+            <div class="nav-item" onclick="nav('trading-import')">
+                <span class="nav-icon">📥</span><span>Import Trading</span>
             </div>
-            <div class="nav-item" onclick="nav('sell-trading')">
-                <span class="nav-icon">🔴</span><span>Vente Trading</span>
+            <div class="nav-item" onclick="nav('dca-import')">
+                <span class="nav-icon">📋</span><span>Import DCA</span>
             </div>
         </div>
     </nav>
@@ -470,35 +607,318 @@
                     </div>
                 </div>
             </div>
+            <div class="pf-filters">
+                <div class="pf-filter-group">
+                    <button class="pf-filter-btn active" id="pff-type-all"      onclick="setPfFilter('type','all')">Tout</button>
+                    <button class="pf-filter-btn"        id="pff-type-dca"      onclick="setPfFilter('type','dca')">DCA</button>
+                    <button class="pf-filter-btn"        id="pff-type-trading"  onclick="setPfFilter('type','trading')">Trading</button>
+                </div>
+                <div class="pf-filter-group">
+                    <button class="pf-filter-btn active" id="pff-plat-all"       onclick="setPfFilter('platform','all')">Toutes</button>
+                    <button class="pf-filter-btn"        id="pff-plat-binance"   onclick="setPfFilter('platform','Binance')">Binance</button>
+                    <button class="pf-filter-btn"        id="pff-plat-revolut"   onclick="setPfFilter('platform','Revolut')">Revolut</button>
+                    <button class="pf-filter-btn"        id="pff-plat-swissborg" onclick="setPfFilter('platform','SwissBorg')">SwissBorg</button>
+                </div>
+                <div class="pf-filter-group">
+                    <button class="pf-filter-btn active" id="pff-year-all"    onclick="setPfFilter('year','all')">Toutes années</button>
+                    <button class="pf-filter-btn"        id="pff-year-2026"   onclick="setPfFilter('year','2026')">2026</button>
+                    <button class="pf-filter-btn"        id="pff-year-pre"    onclick="setPfFilter('year','pre2026')">Avant 2026</button>
+                </div>
+            </div>
             <div class="stats-row">
                 <div class="stat-card">
                     <div class="stat-label">Total Investi</div>
-                    <div class="stat-val gold" id="st-total">—</div>
+                    <div class="stat-val gold" id="pf-total-invest">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Valeur Actuelle</div>
+                    <div class="stat-val muted" id="pf-total-value">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">P&L Global</div>
+                    <div class="stat-val muted" id="pf-pnl">—</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Cryptos DCA</div>
-                    <div class="stat-val muted" id="st-dca">—</div>
+                    <div class="stat-val muted" id="pf-nb-dca">—</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Positions Trading</div>
-                    <div class="stat-val muted" id="st-trad">—</div>
+                    <div class="stat-val muted" id="pf-nb-trad">—</div>
                 </div>
             </div>
-            <div class="card">
-                <div class="card-title">📈 Positions DCA actives</div>
+            <div class="charts-row">
+                <div class="chart-card">
+                    <div class="card-title">🍩 Allocation par valeur actuelle</div>
+                    <div id="pf-donut-wrap">
+                        <div class="chart-placeholder"><div class="ei">📭</div><p>Clique sur Actualiser</p></div>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="card-title">📊 DCA vs Trading</div>
+                    <div id="pf-bar-wrap">
+                        <div class="chart-placeholder"><div class="ei">📭</div><p>Clique sur Actualiser</p></div>
+                    </div>
+                </div>
+            </div>
+            <!-- Table des positions filtrées -->
+            <div class="card" style="margin-top:0">
+                <div class="card-title">📋 Positions détaillées</div>
                 <div class="table-wrap">
                     <table>
-                        <thead><tr><th>Crypto</th><th>Quantité</th><th>Prix Moyen</th><th>Total Investi</th><th>Prix actuel</th><th>Valeur actuelle</th><th>P&amp;L</th></tr></thead>
-                        <tbody id="tb-dca"><tr><td colspan="7"><div class="empty-state"><div class="ei">📭</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
+                        <thead id="thead-pf"></thead>
+                        <tbody id="pf-tb"><tr><td colspan="9"><div class="empty-state"><div class="ei">📭</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
                     </table>
                 </div>
             </div>
+        </div>
+
+        <!-- ══ OBJECTIFS ══ -->
+        <div class="page" id="page-objectifs">
+            <div class="page-header">
+                <div class="page-header-row">
+                    <div>
+                        <div class="page-title">🎯 Objectifs d'allocation</div>
+                        <div class="page-sub">Compare ta répartition DCA actuelle avec tes cibles — classement CoinGecko</div>
+                    </div>
+                    <button class="btn-refresh" id="btn-robj" onclick="loadObjectifs()">🔄 Actualiser</button>
+                </div>
+            </div>
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-label">Valeur DCA totale</div>
+                    <div class="stat-val gold" id="obj-total">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Nb cryptos</div>
+                    <div class="stat-val muted" id="obj-nb">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Conformité globale</div>
+                    <div class="stat-val muted" id="obj-score">—</div>
+                </div>
+            </div>
+            <!-- État vide -->
+            <div id="obj-empty" class="card">
+                <div class="empty-state" style="padding:50px 0">
+                    <div class="ei">📊</div>
+                    <p>Charge d'abord le Portefeuille pour calculer l'allocation</p>
+                    <button class="btn btn-primary" style="margin-top:16px" onclick="loadPortfolio().then(loadObjectifs)">🔄 Charger le portefeuille</button>
+                </div>
+            </div>
+            <!-- Corps (masqué jusqu'au chargement) -->
+            <div id="obj-body" style="display:none">
+                <!-- ── Note stratégique ── -->
+                <div class="card" style="margin-bottom:18px">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+                        <div class="card-title" style="margin:0">📝 Ma stratégie</div>
+                        <span style="font-size:10px;font-weight:700;background:rgba(201,150,62,.15);color:var(--gold);border:1px solid rgba(201,150,62,.35);border-radius:4px;padding:2px 7px;letter-spacing:.4px;white-space:nowrap">
+                            ⚠️ LOCAL STORAGE — À migrer en base de données
+                        </span>
+                    </div>
+                    <textarea id="obj-note"
+                        placeholder="Explique ici ta stratégie d'allocation : pourquoi ces cibles, ta thèse sur chaque catégorie, tes règles de rééquilibrage…"
+                        style="width:100%;min-height:110px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:13px;line-height:1.6;padding:12px 14px;resize:vertical;outline:none;transition:border-color .2s"
+                        oninput="saveObjNote(this.value)"
+                        onfocus="this.style.borderColor='var(--gold)'"
+                        onblur="this.style.borderColor='var(--border)'"
+                    ></textarea>
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:6px;display:flex;justify-content:space-between">
+                        <span>Sauvegarde automatique dans le navigateur</span>
+                        <span id="obj-note-saved" style="color:var(--green);opacity:0;transition:opacity .4s">✓ Sauvegardé</span>
+                    </div>
+                </div>
+                <div class="charts-row">
+                    <div class="chart-card">
+                        <div class="card-title">🍩 Anneau ext. = Objectif &nbsp;·&nbsp; Anneau int. = Actuel</div>
+                        <div id="obj-chart-wrap">
+                            <div class="chart-placeholder"><div class="ei">📭</div></div>
+                        </div>
+                    </div>
+                    <div class="chart-card" style="display:flex;flex-direction:column;justify-content:center">
+                        <div class="card-title" style="margin-bottom:14px">📊 Par catégorie</div>
+                        <table class="obj-table" style="width:100%;border-collapse:collapse">
+                            <thead>
+                                <tr style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary)">
+                                    <th style="padding:6px 10px;text-align:left">Catégorie</th>
+                                    <th style="padding:6px 10px;text-align:center">Objectif</th>
+                                    <th style="padding:6px 10px;text-align:center">Actuel</th>
+                                    <th style="padding:6px 10px;text-align:center">Écart</th>
+                                    <th style="padding:6px 10px;text-align:right">Valeur</th>
+                                </tr>
+                            </thead>
+                            <tbody id="obj-breakdown-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">🔍 Détail par crypto</div>
+                    <div class="table-wrap">
+                        <table class="obj-detail-table" style="width:100%;border-collapse:collapse">
+                            <thead>
+                                <tr style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);background:var(--bg-tertiary)">
+                                    <th style="padding:5px 8px;text-align:left;border-radius:8px 0 0 8px">Crypto</th>
+                                    <th style="padding:5px 8px;text-align:left">Catégorie</th>
+                                    <th style="padding:5px 8px;text-align:center">Rang CG</th>
+                                    <th style="padding:5px 8px;text-align:right">Valeur act.</th>
+                                    <th style="padding:5px 8px;text-align:right">% DCA</th>
+                                    <th style="padding:5px 8px;text-align:right;border-radius:0 8px 8px 0">vs cible catégorie</th>
+                                </tr>
+                            </thead>
+                            <tbody id="obj-detail-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ══ ANALYSE ══ -->
+        <div class="page" id="page-analyse">
+            <div class="page-header">
+                <div class="page-title">📉 Analyse</div>
+                <div class="page-sub">Graphiques en bougies — API Binance (temps réel, sans clé)</div>
+            </div>
+            <div class="card" style="margin-bottom:16px;padding:18px 20px">
+                <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+                    <div class="fg" style="flex:1;min-width:180px">
+                        <label>Symbole</label>
+                        <div style="display:flex;gap:8px">
+                            <input type="text" id="analyse-symbol" value="BTC" placeholder="BTC, ETH, SOL…"
+                                   list="analyse-symbols-list"
+                                   oninput="this.value=this.value.toUpperCase().replace(/USDT$/,'')"
+                                   onkeydown="if(event.key==='Enter')loadAnalyse()" style="flex:1">
+                            <datalist id="analyse-symbols-list"></datalist>
+                            <button class="btn btn-primary" onclick="loadAnalyse()">📈 Charger</button>
+                        </div>
+                    </div>
+                    <div id="analyse-status" style="font-size:12px;color:var(--text-secondary);padding-bottom:10px"></div>
+                </div>
+                <!-- Timeframes -->
+                <div style="display:flex;align-items:center;gap:14px;margin-top:14px;flex-wrap:wrap">
+                    <div class="analyse-interval-bar">
+                        <button class="anlz-btn" id="ai-1h"  onclick="setAnalyseInterval('1h')">1H</button>
+                        <button class="anlz-btn" id="ai-4h"  onclick="setAnalyseInterval('4h')">4H</button>
+                        <button class="anlz-btn active" id="ai-1d" onclick="setAnalyseInterval('1d')">1J</button>
+                        <button class="anlz-btn" id="ai-1w"  onclick="setAnalyseInterval('1w')">1S</button>
+                        <button class="anlz-btn" id="ai-1M"  onclick="setAnalyseInterval('1M')">1M</button>
+                    </div>
+                    <div style="width:1px;height:22px;background:var(--border)"></div>
+                    <!-- Moyennes mobiles -->
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="font-size:10px;color:var(--text-secondary);font-weight:700;text-transform:uppercase;letter-spacing:.5px">MM :</span>
+                        <button id="ma-btn-9"  onclick="toggleMA(9)"
+                            style="padding:4px 11px;border-radius:6px;border:1px solid #F39C12;background:rgba(243,156,18,.15);color:#F39C12;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s">MA 9</button>
+                        <button id="ma-btn-21" onclick="toggleMA(21)"
+                            style="padding:4px 11px;border-radius:6px;border:1px solid #3498DB;background:rgba(52,152,219,.15);color:#3498DB;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s">MA 21</button>
+                        <button id="ma-btn-50" onclick="toggleMA(50)"
+                            style="padding:4px 11px;border-radius:6px;border:1px solid #9B59B6;background:rgba(155,89,182,.15);color:#9B59B6;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s">MA 50</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card" style="padding:16px 20px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+                    <div style="font-size:15px;font-weight:700;color:var(--text-primary)" id="analyse-title">—</div>
+                    <div style="font-size:12px;color:var(--text-secondary)" id="analyse-meta">—</div>
+                </div>
+                <!-- Chart bougies + volume — wrapper relatif à hauteur fixe pour briser la boucle ResizeObserver -->
+                <div class="anlz-chart-wrap" style="height:380px">
+                    <div id="analyse-chart-container">
+                        <!-- placeholder affiché avant le premier chargement -->
+                        <div class="chart-placeholder" style="height:380px">
+                            <div class="ei">📉</div>
+                            <p>Sélectionne une crypto et clique sur Charger</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- RSI -->
+                <div id="analyse-rsi-wrap" style="display:none">
+                    <div style="display:flex;align-items:center;gap:8px;padding:6px 2px 4px">
+                        <span style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.6px">RSI (14)</span>
+                        <span id="analyse-rsi-val" style="font-size:11px;font-weight:700;color:var(--gold)"></span>
+                        <span style="font-size:10px;color:var(--text-secondary)">— 30 survente · 70 surachat</span>
+                    </div>
+                    <!-- wrapper relatif à hauteur fixe -->
+                    <div class="anlz-chart-wrap" style="height:130px">
+                        <div id="analyse-rsi-container"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Encadré Analyse technique ── -->
+            <div id="analyse-insight" style="display:none;margin-top:16px">
+                <div class="card">
+                    <!-- En-tête : titre + badge tendance -->
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+                        <div class="card-title" style="margin:0">🤖 Analyse technique</div>
+                        <div id="anlz-trend-badge" style="font-size:13px;font-weight:700;padding:5px 16px;border-radius:20px;letter-spacing:.4px">—</div>
+                    </div>
+                    <!-- Texte narratif -->
+                    <p id="anlz-text" style="font-size:13px;line-height:1.75;color:var(--text-secondary);margin-bottom:18px"></p>
+                    <!-- Supports / Résistances -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                        <div style="background:rgba(39,174,96,.07);border:1px solid rgba(39,174,96,.25);border-radius:10px;padding:12px 14px">
+                            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--green);margin-bottom:8px">🟢 Supports</div>
+                            <div id="anlz-supports" style="display:flex;flex-direction:column;gap:5px"></div>
+                        </div>
+                        <div style="background:rgba(192,57,43,.07);border:1px solid rgba(192,57,43,.25);border-radius:10px;padding:12px 14px">
+                            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--red);margin-bottom:8px">🔴 Résistances</div>
+                            <div id="anlz-resistances" style="display:flex;flex-direction:column;gap:5px"></div>
+                        </div>
+                    </div>
+                    <div style="font-size:10px;color:var(--text-secondary);opacity:.6;margin-top:12px;text-align:right">
+                        Analyse automatique basée sur les MAs, RSI et pivots des 300 dernières bougies
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ DCA DASHBOARD ══ -->
+        <div class="page" id="page-dca-dash">
+            <div class="page-header">
+                <div class="page-header-row">
+                    <div>
+                        <div class="page-title">📈 Dashboard DCA</div>
+                        <div class="page-sub">Vue d'ensemble de ta stratégie Dollar Cost Averaging</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <button class="btn-refresh" id="btn-rdd" onclick="loadDcaDash()">🔄 Actualiser</button>
+                        <span class="last-update" id="last-update-dca"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="pf-filters">
+                <div class="pf-filter-group">
+                    <button class="pf-filter-btn active" id="ddf-plat-all"       onclick="setDdFilter('all')">Toutes</button>
+                    <button class="pf-filter-btn"        id="ddf-plat-binance"   onclick="setDdFilter('Binance')">Binance</button>
+                    <button class="pf-filter-btn"        id="ddf-plat-revolut"   onclick="setDdFilter('Revolut')">Revolut</button>
+                    <button class="pf-filter-btn"        id="ddf-plat-swissborg" onclick="setDdFilter('SwissBorg')">SwissBorg</button>
+                </div>
+            </div>
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-label">Total Investi DCA</div>
+                    <div class="stat-val gold" id="dd-invested">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Valeur Actuelle</div>
+                    <div class="stat-val muted" id="dd-value">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">P&L DCA</div>
+                    <div class="stat-val muted" id="dd-pnl">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Nb Cryptos</div>
+                    <div class="stat-val muted" id="dd-nb">—</div>
+                </div>
+            </div>
             <div class="card">
-                <div class="card-title">⚡ Positions Trading ouvertes</div>
+                <div class="card-title">💎 Positions DCA actives</div>
                 <div class="table-wrap">
                     <table>
-                        <thead><tr><th>Code</th><th>Date</th><th>Crypto</th><th>Quantité</th><th>Prix Achat</th><th>Total $</th><th>Objectif</th><th>Prix actuel</th><th>Valeur actuelle</th><th>P&amp;L</th></tr></thead>
-                        <tbody id="tb-trad"><tr><td colspan="10"><div class="empty-state"><div class="ei">📭</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
+                        <thead id="thead-dd"></thead>
+                        <tbody id="dd-tb"><tr><td colspan="7"><div class="empty-state"><div class="ei">📭</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -512,7 +932,7 @@
             </div>
             <div class="card">
                 <div class="card-title">📝 Détails de l'achat</div>
-                <div class="form-grid">
+                <div class="form-grid" style="grid-template-columns:1fr 1fr;margin-bottom:16px">
                     <div class="fg">
                         <label>Crypto</label>
                         <input type="text" id="bd-crypto" placeholder="BTC, ETH, SOL…" oninput="this.value=this.value.toUpperCase()" />
@@ -521,6 +941,17 @@
                         <label>Date d'achat</label>
                         <input type="date" id="bd-date" />
                     </div>
+                </div>
+                <div class="fg" style="margin-bottom:16px">
+                    <label>Plateforme</label>
+                    <select id="bd-platform">
+                        <option value="">— Sélectionner —</option>
+                        <option value="Binance">Binance</option>
+                        <option value="Revolut">Revolut</option>
+                        <option value="SwissBorg">SwissBorg</option>
+                    </select>
+                </div>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr">
                     <div class="fg">
                         <label>Quantité <span class="calc-tag" id="bd-qty-tag"></span></label>
                         <input type="number" id="bd-qty" placeholder="0.5" step="any" min="0" oninput="this.classList.remove('calculated'); calcDCA('bd')" />
@@ -554,7 +985,7 @@
             </div>
             <div class="card">
                 <div class="card-title">📝 Détails de la vente</div>
-                <div class="form-grid">
+                <div class="form-grid" style="grid-template-columns:1fr 1fr;margin-bottom:16px">
                     <div class="fg">
                         <label>Crypto</label>
                         <input type="text" id="sd-crypto" placeholder="BTC, ETH, SOL…" oninput="this.value=this.value.toUpperCase()" />
@@ -563,6 +994,17 @@
                         <label>Date de vente</label>
                         <input type="date" id="sd-date" />
                     </div>
+                </div>
+                <div class="fg" style="margin-bottom:16px">
+                    <label>Plateforme</label>
+                    <select id="sd-platform">
+                        <option value="">— Sélectionner —</option>
+                        <option value="Binance">Binance</option>
+                        <option value="Revolut">Revolut</option>
+                        <option value="SwissBorg">SwissBorg</option>
+                    </select>
+                </div>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr">
                     <div class="fg">
                         <label>Quantité <span class="calc-tag" id="sd-qty-tag"></span></label>
                         <input type="number" id="sd-qty" placeholder="0.3" step="any" min="0" oninput="this.classList.remove('calculated'); calcDCA('sd')" />
@@ -588,12 +1030,36 @@
             </div>
         </div>
 
+        <!-- ══ DCA HISTORIQUE ══ -->
+        <div class="page" id="page-dca-hist">
+            <div class="page-header">
+                <div class="page-header-row">
+                    <div>
+                        <div class="page-title">📋 Historique DCA</div>
+                        <div class="page-sub">Toutes tes transactions DCA (achats et ventes)</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <button class="btn-refresh" id="btn-rdh" onclick="loadDcaHistory()">🔄 Actualiser</button>
+                        <span class="last-update" id="last-update-dca-hist"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="table-wrap">
+                    <table>
+                        <thead id="thead-dh"></thead>
+                        <tbody id="dh-tb"><tr><td colspan="6"><div class="empty-state"><div class="ei">📭</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- ══ TRADING DASHBOARD ══ -->
         <div class="page" id="page-trading-dash">
             <div class="page-header">
                 <div class="page-header-row">
                     <div>
-                        <div class="page-title">📊 Dashboard Trading</div>
+                        <div class="page-title">⚡ Dashboard Trading</div>
                         <div class="page-sub">Performance globale de ta stratégie trading</div>
                     </div>
                     <div style="display:flex;align-items:center;gap:10px;">
@@ -602,43 +1068,62 @@
                     </div>
                 </div>
             </div>
-            <div class="stats-row" style="grid-template-columns:repeat(auto-fit,minmax(155px,1fr))">
-                <div class="stat-card">
-                    <div class="stat-label">Positions ouvertes</div>
-                    <div class="stat-val muted" id="td-open">—</div>
+            <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:0;margin-bottom:20px">
+                <!-- ── Gauche : positions ouvertes ── -->
+                <div style="padding-right:20px">
+                    <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;padding-left:2px">Ouvert</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
+                        <div class="stat-card">
+                            <div class="stat-label">Positions ouvertes</div>
+                            <div class="stat-val muted" id="td-open">—</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Capital exposé</div>
+                            <div class="stat-val gold" id="td-invested">—</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">P&L Latent</div>
+                            <div class="stat-val muted" id="td-pnl">—</div>
+                        </div>
+                    </div>
+                    <div class="chart-card" style="padding:16px 20px">
+                        <div class="card-title" style="margin-bottom:10px">🎯 Distribution des positions</div>
+                        <div id="td-donut-wrap">
+                            <div class="chart-placeholder" style="height:140px"><div class="ei">📭</div><p>Clique sur Actualiser</p></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-label">Total investi</div>
-                    <div class="stat-val gold" id="td-invested">—</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Valeur actuelle</div>
-                    <div class="stat-val muted" id="td-value">—</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">P&L latent</div>
-                    <div class="stat-val muted" id="td-pnl">—</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">P&L réalisé</div>
-                    <div class="stat-val muted" id="td-realized">—</div>
+                <!-- ── Séparateur ── -->
+                <div style="background:linear-gradient(to bottom,transparent,var(--border-gold),transparent);margin:0 4px;align-self:stretch"></div>
+                <!-- ── Droite : clôturé ── -->
+                <div style="padding-left:20px">
+                    <div style="font-size:10px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;padding-left:2px">Clôturé</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                        <div class="stat-card">
+                            <div class="stat-label">Positions fermées</div>
+                            <div class="stat-val muted" id="td-closed">—</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">P&L réalisé</div>
+                            <div class="stat-val muted" id="td-realized">—</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Rentabilité</div>
+                            <div class="stat-val muted" id="td-winrate">—</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Capital clôturé</div>
+                            <div class="stat-val gold" id="td-capital-closed">—</div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="card">
-                <div class="card-title">⚡ Positions ouvertes</div>
+                <div class="card-title">🎯 Positions ouvertes</div>
                 <div class="table-wrap">
                     <table>
-                        <thead><tr><th>Code</th><th>Date</th><th>Crypto</th><th>Investi</th><th>Prix actuel</th><th>Valeur</th><th>P&amp;L</th><th>Objectif</th></tr></thead>
-                        <tbody id="td-tb-open"><tr><td colspan="8"><div class="empty-state"><div class="ei">📭</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="card">
-                <div class="card-title">📋 Historique des transactions</div>
-                <div class="table-wrap">
-                    <table>
-                        <thead><tr><th>Code</th><th>Crypto</th><th>Date achat</th><th>Date vente</th><th>Investi</th><th>Revenu</th><th>P&amp;L $</th><th>P&amp;L %</th></tr></thead>
-                        <tbody id="td-tb-hist"><tr><td colspan="8"><div class="empty-state"><div class="ei">📋</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
+                        <thead id="thead-td-open"></thead>
+                        <tbody id="td-tb-open"><tr><td colspan="7"><div class="empty-state"><div class="ei">📭</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -649,20 +1134,20 @@
             <div class="page-header">
                 <div class="page-header-row">
                     <div>
-                        <div class="page-title">⚡ Positions Trading</div>
-                        <div class="page-sub">Toutes tes positions ouvertes</div>
+                        <div class="page-title">🎯 Positions Trading</div>
+                        <div class="page-sub">Positions ouvertes et historique</div>
                     </div>
                     <div style="display:flex;gap:8px;align-items:center">
-                        <button class="btn btn-success btn-sm" onclick="toggleQuickBuy()">🚀 Nouvel achat</button>
-                        <button class="btn-refresh" id="btn-rtp" onclick="loadTradingPos()">🔄 Actualiser</button>
+                        <button class="btn btn-success btn-sm" id="btn-quick-buy" onclick="toggleQuickBuy()">🚀 Nouvel achat</button>
+                        <button class="btn-refresh" id="btn-rtp" onclick="refreshTradingPos()">🔄 Actualiser</button>
                     </div>
                 </div>
             </div>
 
             <!-- Quick buy panel -->
             <div class="quick-buy-panel" id="quick-buy-panel">
-                <div style="font-size:12px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px">🚀 Achat rapide</div>
-                <div class="form-grid">
+                <div class="card-title">🚀 Nouvelle position trading</div>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr;margin-bottom:16px">
                     <div class="fg">
                         <label>Crypto</label>
                         <input type="text" id="qb-crypto" placeholder="BTC, ETH, SOL…" oninput="this.value=this.value.toUpperCase()">
@@ -671,6 +1156,17 @@
                         <label>Date d'achat</label>
                         <input type="date" id="qb-date">
                     </div>
+                </div>
+                <div class="fg" style="margin-bottom:16px">
+                    <label>Plateforme</label>
+                    <select id="qb-platform">
+                        <option value="">— Sélectionner —</option>
+                        <option value="Binance">Binance</option>
+                        <option value="Revolut">Revolut</option>
+                        <option value="SwissBorg">SwissBorg</option>
+                    </select>
+                </div>
+                <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:16px">
                     <div class="fg">
                         <label>Quantité <span class="calc-tag" id="qb-qty-tag"></span></label>
                         <input type="number" id="qb-qty" placeholder="0.5" step="any" min="0" oninput="this.classList.remove('calculated'); calcQuickBuy()">
@@ -682,105 +1178,136 @@
                     <div class="fg">
                         <label>Prix unitaire ($) <span class="calc-tag" id="qb-price-tag"></span></label>
                         <input type="number" id="qb-price" placeholder="50000" step="any" min="0" oninput="this.classList.remove('calculated'); calcQuickBuy()">
-                        <div class="hint">2 des 3 champs suffisent</div>
-                    </div>
-                    <div class="fg">
-                        <label>Objectif (%)</label>
-                        <input type="number" id="qb-target" placeholder="10" step="any" min="0">
+                        <div class="hint">Remplis 2 des 3 champs — le 3ᵉ est calculé automatiquement</div>
                     </div>
                 </div>
-                <div class="form-actions" style="margin-top:14px;padding-top:14px">
+                <div class="fg">
+                    <label>Objectif de gain (%)</label>
+                    <input type="number" id="qb-target" placeholder="10" step="any" min="0">
+                </div>
+                <div class="confirm-panel" id="cp-quick-buy">
+                    <div class="confirm-title">✅ Vérification</div>
+                    <div id="cd-quick-buy"></div>
+                </div>
+                <div class="form-actions">
                     <button class="btn btn-outline" onclick="toggleQuickBuy()">Annuler</button>
                     <button class="btn btn-primary" id="qb-submit" onclick="handleQuickBuy()">🚀 Ouvrir la position</button>
                 </div>
             </div>
 
-            <div class="card">
+            <!-- Tabs -->
+            <div class="tab-bar">
+                <button class="tab-btn active" id="tab-pos-open" onclick="switchPosTab('open')">⚡ Ouvertes</button>
+                <button class="tab-btn" id="tab-pos-hist" onclick="switchPosTab('hist')">📋 Historique</button>
+            </div>
+
+            <!-- Tab: Positions ouvertes -->
+            <div id="tpos-panel-open">
+                <div class="card" style="margin-bottom:0">
+                    <div class="table-wrap">
+                        <table>
+                            <thead id="thead-tpos"></thead>
+                            <tbody id="tb-tpos"><tr><td colspan="9"><div class="empty-state"><div class="ei">📭</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Historique -->
+            <div id="tpos-panel-hist" style="display:none">
+                <div class="card" style="margin-bottom:0">
+                    <div class="table-wrap">
+                        <table>
+                            <thead id="thead-tpos-hist"></thead>
+                            <tbody id="tb-tpos-hist"><tr><td colspan="8"><div class="empty-state"><div class="ei">📋</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ DCA IMPORT ══ -->
+        <div class="page" id="page-dca-import">
+            <div class="page-header">
+                <div class="page-header-row">
+                    <div>
+                        <div class="page-title">📋 Import DCA</div>
+                        <div class="page-sub">71 transactions historiques — montants en EUR</div>
+                    </div>
+                    <button class="btn btn-primary" id="btn-import-dca-all" onclick="importAllDCA()">🚀 Importer tout</button>
+                </div>
+            </div>
+            <div class="card" style="padding:12px 16px;margin-bottom:12px;border-color:var(--border-gold)">
+                <div style="font-size:12px;color:var(--text-secondary);line-height:1.8">
+                    <strong style="color:var(--gold)">Montants en euros (€)</strong> — stockés tels quels dans Airtable.<br>
+                    <strong>Type Achat / Vente</strong> requis. &nbsp;|&nbsp; Plateforme : Revolut, Binance ou SwissBorg.
+                </div>
+            </div>
+            <div class="card" style="padding:14px">
                 <div class="table-wrap">
-                    <table>
-                        <thead><tr><th>Code</th><th>Date</th><th>Crypto</th><th>Qté</th><th>Prix achat</th><th>Total $</th><th>Objectif</th><th>Prix actuel</th><th>Valeur</th><th>P&amp;L</th><th>Action</th></tr></thead>
-                        <tbody id="tb-tpos"><tr><td colspan="11"><div class="empty-state"><div class="ei">📭</div><p>Clique sur Actualiser</p></div></td></tr></tbody>
+                    <table id="import-dca-table" style="min-width:700px">
+                        <thead>
+                            <tr>
+                                <th style="min-width:60px">Type</th>
+                                <th style="min-width:90px">Crypto</th>
+                                <th style="min-width:110px">Date</th>
+                                <th style="min-width:110px">Quantité</th>
+                                <th style="min-width:82px">Montant €</th>
+                                <th style="min-width:82px">Prix unit. €</th>
+                                <th style="min-width:100px">Plateforme</th>
+                                <th style="width:32px;text-align:center">St.</th>
+                                <th style="width:28px"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="import-dca-tbody"></tbody>
                     </table>
                 </div>
-            </div>
-        </div>
-
-        <!-- ══ BUY TRADING ══ -->
-        <div class="page" id="page-buy-trading">
-            <div class="page-header">
-                <div class="page-title">🚀 Achat Trading</div>
-                <div class="page-sub">Ouvre une nouvelle position de trading</div>
-            </div>
-            <div class="card">
-                <div class="card-title">📝 Détails de la position</div>
-                <div class="form-grid">
-                    <div class="fg">
-                        <label>Crypto</label>
-                        <input type="text" id="bt-crypto" placeholder="BTC, ETH, SOL…" oninput="this.value=this.value.toUpperCase()" />
-                    </div>
-                    <div class="fg">
-                        <label>Date d'achat</label>
-                        <input type="date" id="bt-date" />
-                    </div>
-                    <div class="fg">
-                        <label>Quantité</label>
-                        <input type="number" id="bt-qty" placeholder="0.5" step="any" min="0" oninput="calcUnit()" />
-                    </div>
-                    <div class="fg">
-                        <label>Prix d'achat total ($)</label>
-                        <input type="number" id="bt-total" placeholder="70000" step="any" min="0" oninput="calcUnit()" />
-                    </div>
-                    <div class="fg">
-                        <label>Objectif de gain (%)</label>
-                        <input type="number" id="bt-target" placeholder="10" step="any" min="0" />
-                        <div class="hint">% de hausse visé avant revente</div>
-                    </div>
-                    <div class="fg">
-                        <label>Prix unitaire — calculé auto</label>
-                        <input type="text" id="bt-unit" readonly placeholder="—" />
-                    </div>
-                </div>
-                <div class="confirm-panel" id="cp-buy-trading">
-                    <div class="confirm-title">✅ Vérification</div>
-                    <div id="cd-buy-trading"></div>
-                </div>
-                <div class="form-actions">
-                    <button class="btn btn-outline" onclick="resetForm('buy-trading')">Réinitialiser</button>
-                    <button class="btn btn-primary" id="bs-buy-trading" onclick="handleBuyTrading()">🚀 Ouvrir la position</button>
+                <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+                    <button class="btn btn-outline btn-sm" onclick="importDcaAddRow()">＋ Ajouter une ligne</button>
+                    <div id="import-dca-progress" style="font-size:12px;color:var(--text-secondary)"></div>
                 </div>
             </div>
         </div>
 
-        <!-- ══ SELL TRADING ══ -->
-        <div class="page" id="page-sell-trading">
+        <!-- ══ TRADING IMPORT ══ -->
+        <div class="page" id="page-trading-import">
             <div class="page-header">
-                <div class="page-title">🔴 Clôturer une position</div>
-                <div class="page-sub">Ferme une position de trading existante</div>
+                <div class="page-header-row">
+                    <div>
+                        <div class="page-title">📥 Import Trading</div>
+                        <div class="page-sub">Importe tes positions passées dans Airtable</div>
+                    </div>
+                    <button class="btn btn-primary" id="btn-import-all" onclick="importAll()">🚀 Importer tout</button>
+                </div>
             </div>
-            <div class="card">
-                <div class="card-title">📝 Détails de la clôture</div>
-                <div class="form-grid">
-                    <div class="fg">
-                        <label>Code de la position</label>
-                        <input type="text" id="st-code" placeholder="T-2025-001" />
-                        <div class="hint">Visible dans l'onglet Positions Trading</div>
-                    </div>
-                    <div class="fg">
-                        <label>Date de vente</label>
-                        <input type="date" id="st-date" />
-                    </div>
-                    <div class="fg">
-                        <label>Prix de vente total ($)</label>
-                        <input type="number" id="st-price" placeholder="150000" step="any" min="0" />
-                    </div>
+            <div class="card" style="padding:12px 16px;margin-bottom:12px;border-color:var(--border-gold)">
+                <div style="font-size:12px;color:var(--text-secondary);line-height:1.8">
+                    <strong style="color:var(--gold)">Conversion EUR → USD</strong> appliquée automatiquement au taux fixe <strong style="color:var(--text-primary)">1 € = 1,11 $</strong>.<br>
+                    <strong>Date vente vide</strong> = position <em>ouverte</em>. &nbsp;|&nbsp; <strong>Date vente remplie</strong> = clôturée automatiquement.
                 </div>
-                <div class="confirm-panel" id="cp-sell-trading">
-                    <div class="confirm-title">✅ Vérification</div>
-                    <div id="cd-sell-trading"></div>
+            </div>
+            <div class="card" style="padding:14px">
+                <div class="table-wrap">
+                    <table id="import-table" style="min-width:800px">
+                        <thead>
+                            <tr>
+                                <th style="min-width:68px">Crypto</th>
+                                <th style="min-width:110px">Date achat</th>
+                                <th style="min-width:115px">Quantité</th>
+                                <th style="min-width:82px">Achat €</th>
+                                <th style="min-width:52px">Obj%</th>
+                                <th style="min-width:110px">Date vente</th>
+                                <th style="min-width:82px">Vente €</th>
+                                <th style="width:32px;text-align:center">St.</th>
+                                <th style="width:28px"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="import-tbody"></tbody>
+                    </table>
                 </div>
-                <div class="form-actions">
-                    <button class="btn btn-outline" onclick="resetForm('sell-trading')">Réinitialiser</button>
-                    <button class="btn btn-primary" id="bs-sell-trading" onclick="handleSellTrading()">🔴 Clôturer la position</button>
+                <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+                    <button class="btn btn-outline btn-sm" onclick="importAddRow()">＋ Ajouter une ligne</button>
+                    <div id="import-progress" style="font-size:12px;color:var(--text-secondary)"></div>
                 </div>
             </div>
         </div>
@@ -793,11 +1320,12 @@
 // CONFIG
 // ══════════════════════════════════════════
 const CFG = {
-    url: 'https://n8n.srv967472.hstgr.cloud/webhook',   // ← remplace par ton URL n8n (sans slash final)
-    key: 'cesar-crypto-manager-xsb66asA78KLmc34-secret',              // ← remplace par ton bearer token
+    url: 'https://n8n.srv967472.hstgr.cloud/webhook',
+    key: 'cesar-crypto-manager-xsb66asA78KLmc34-secret',
     ep: {
         portfolio:        '/cesar-portfolio',
         dca:              '/cesar-dca',
+        dcaHistory:       '/cesar-dca-history',
         tradingPositions: '/cesar-trading-positions',
         tradingBuy:       '/cesar-trading-buy',
         tradingSell:      '/cesar-trading-sell',
@@ -826,9 +1354,13 @@ const CRYPTO_IDS = {
     STX:'blockstack', FLOW:'flow', ZEC:'zcash', XMR:'monero',
     PEPE:'pepe', FLOKI:'floki', BONK:'bonk', JUP:'jupiter-exchange-solana',
     PYTH:'pyth-network', TIA:'celestia', TON:'the-open-network',
-    NOT:'notcoin', RENDER:'render-token', FET:'fetch-ai',
+    NOT:'notcoin', RENDER:'render-token', FET:'fetch-ai', FETCH:'fetch-ai',
     AGIX:'singularitynet', OCEAN:'ocean-protocol',
     ENA:'ethena', STRK:'starknet', W:'wormhole',
+    // Cryptos portefeuille César
+    CHZ:'chiliz', ENJ:'enjincoin', BORG:'swissborg',
+    JASMY:'jasmycoin', ANKR:'ankr', CKB:'nervos-network',
+    FLUX:'zelcash', TAO:'bittensor',
 };
 
 function getUserCryptoMap() {
@@ -843,30 +1375,282 @@ function getUserCryptoMap() {
 
 function resolveCoinId(symbol) {
     const custom = getUserCryptoMap();
-    return custom[symbol] || CRYPTO_IDS[symbol] || null;
+    return custom[symbol] || CRYPTO_IDS[symbol] || _cgDiscovered[symbol] || null;
 }
 
+// Cache session pour les IDs découverts automatiquement
+const _cgDiscovered = {};
+
+async function _discoverCoinId(symbol) {
+    if (_cgDiscovered[symbol] !== undefined) return _cgDiscovered[symbol];
+    try {
+        const res = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(symbol)}`);
+        if (!res.ok) { _cgDiscovered[symbol] = null; return null; }
+        const data = await res.json();
+        const matches = (data.coins || []).filter(c => c.symbol.toUpperCase() === symbol.toUpperCase());
+        // Prend le coin avec le meilleur rang de market cap
+        matches.sort((a, b) => (a.market_cap_rank || 99999) - (b.market_cap_rank || 99999));
+        const id = matches[0]?.id || null;
+        _cgDiscovered[symbol] = id;
+        if (id) console.log(`[César] Auto-découverte CoinGecko : ${symbol} → ${id}`);
+        else    console.warn(`[César] CoinGecko : aucun résultat pour "${symbol}"`);
+        return id;
+    } catch { _cgDiscovered[symbol] = null; return null; }
+}
+
+// Prix manuels (tokens non listés sur CoinGecko ou à valeur fixe)
+const MANUAL_PRICES = {
+    RWA:   40.87,
+    GAM:   14.84,
+    EUROS:  1,     // 1 EURO = valeur actuelle = quantité
+};
+
 async function fetchPrices(symbols) {
-    const ids = [...new Set(symbols.map(s => resolveCoinId(s)).filter(Boolean))];
-    if (!ids.length) return {};
+    // Prix manuels — toujours injectés dans le résultat, quelle que soit la liste reçue
+    const out = { ...MANUAL_PRICES };
+
+    if (!symbols.length) return out;
+
+    // Symboles à récupérer sur CoinGecko (tout sauf ceux déjà couverts manuellement)
+    const toFetch = symbols.filter(s => MANUAL_PRICES[s] == null);
+
+    if (!toFetch.length) return out;
+
+    // 1. Résolution initiale (CRYPTO_IDS + custom map + déjà découverts)
+    const symToId = {};
+    const unknowns = [];
+    toFetch.forEach(sym => {
+        const id = resolveCoinId(sym);
+        if (id) symToId[sym] = id;
+        else unknowns.push(sym);
+    });
+
+    // 2. Auto-discovery pour les symboles inconnus
+    if (unknowns.length) {
+        await Promise.all(unknowns.map(async sym => {
+            const id = await _discoverCoinId(sym);
+            if (id) symToId[sym] = id;
+        }));
+    }
+
+    const ids = [...new Set(Object.values(symToId))];
+    if (!ids.length) return out;
+
     try {
         const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(',')}&vs_currencies=usd`);
         if (!res.ok) throw new Error('CoinGecko ' + res.status);
         const data = await res.json();
-        const out = {};
-        symbols.forEach(sym => {
-            const id = resolveCoinId(sym);
+        toFetch.forEach(sym => {
+            const id = symToId[sym];
             if (id && data[id]?.usd != null) out[sym] = data[id].usd;
         });
         return out;
     } catch(e) {
         console.warn('CoinGecko error:', e.message);
-        return {};
+        return out;  // retourne quand même les prix manuels
     }
 }
 
 // Per-form step state
 const fstate = {};
+
+// Chart instances (to destroy before re-render)
+const charts = {};
+
+// ══════════════════════════════════════════
+// TABLE SORT / FILTER
+// ══════════════════════════════════════════
+const COLS_PF = [
+    { key:'rank',    label:'Rang CG',      sortType:'num' },
+    { key:'crypto',  label:'Crypto',       sortType:'str' },
+    { key:'type',    label:'Type',         sortType:'str' },
+    { key:'qty',     label:'Quantité',     sortType:'num' },
+    { key:'prix',    label:'Prix moyen',   sortType:'num' },
+    { key:'inv',     label:'Investi',      sortType:'num' },
+    { key:'prixact', label:'Prix actuel',  sortType:'num' },
+    { key:'val',     label:'Valeur',       sortType:'num' },
+    { key:'pnl',     label:'P&L',          sortType:'num' },
+];
+const COLS_DD = [
+    { key:'crypto',  label:'Crypto',       sortType:'str' },
+    { key:'qty',     label:'Quantité',     sortType:'num' },
+    { key:'pm',      label:'Prix moyen',   sortType:'num' },
+    { key:'inv',     label:'Total investi', sortType:'num' },
+    { key:'prixact', label:'Prix actuel',  sortType:'num' },
+    { key:'val',     label:'Valeur act.',  sortType:'num' },
+    { key:'pnl',     label:'P&L',          sortType:'num' },
+];
+const COLS_DH = [
+    { key:'date',    label:'Date',         sortType:'str' },
+    { key:'type',    label:'Type',         sortType:'str' },
+    { key:'crypto',  label:'Crypto',       sortType:'str' },
+    { key:'qty',     label:'Quantité',     sortType:'num' },
+    { key:'montant', label:'Montant ($)',   sortType:'num' },
+    { key:'prix',    label:'Prix unit.',   sortType:'num' },
+];
+const COLS_DASH_TRADING = [
+    { key:'date',    label:'Date',         sortType:'str' },
+    { key:'crypto',  label:'Crypto',       sortType:'str' },
+    { key:'inv',     label:'Investi',      sortType:'num' },
+    { key:'obj',     label:'Objectif',     sortType:'num' },
+    { key:'cible',   label:'Prix cible',   sortType:'num' },
+    { key:'prixact', label:'Prix actuel',  sortType:'num' },
+    { key:'pnl',     label:'P&L',          sortType:'num' },
+    { key:'roi',     label:'ROI',          sortType:'num' },
+];
+const COLS_POS_OPEN = [
+    { key:'date',    label:'Date',         sortType:'str' },
+    { key:'crypto',  label:'Crypto',       sortType:'str' },
+    { key:'qty',     label:'Qté',          sortType:'num' },
+    { key:'inv',     label:'Investi',      sortType:'num' },
+    { key:'obj',     label:'Objectif',     sortType:'num' },
+    { key:'cible',   label:'Prix cible',   sortType:'num' },
+    { key:'prixact', label:'Prix actuel',  sortType:'num' },
+    { key:'pnl',     label:'P&L',          sortType:'num' },
+    { key:'roi',     label:'ROI',          sortType:'num' },
+    { key:'action',  label:'Action',       sortType:null  },
+];
+const COLS_POS_HIST = [
+    { key:'crypto',     label:'Crypto',     sortType:'str' },
+    { key:'date_achat', label:'Date achat', sortType:'str' },
+    { key:'date_vente', label:'Date vente', sortType:'str' },
+    { key:'inv',        label:'Investi',    sortType:'num' },
+    { key:'rev',        label:'Revenu',     sortType:'num' },
+    { key:'pnl',        label:'P&L $',      sortType:'num' },
+    { key:'pnlpct',     label:'P&L %',      sortType:'num' },
+];
+
+const _tbl = {};
+
+function tblInit(id, cols, tbodyId, theadId) {
+    _tbl[id] = { cols, tbodyId, theadId, rows:[], sortCol:null, sortDir:1, filters:{} };
+    _buildThead(id);
+}
+
+function _buildThead(id) {
+    const t = _tbl[id];
+    const thead = document.getElementById(t.theadId);
+    if (!thead) return;
+    thead.innerHTML = '<tr>' + t.cols.map((c,i) => {
+        if (!c.sortType) return `<th>${c.label}</th>`;
+        return `<th><div class="th-wrap">
+            <span>${c.label}</span>
+            <span class="th-sort-btn" id="ts-${id}-${i}" onclick="tblSort('${id}',${i});event.stopPropagation()" title="Trier">⇅</span>
+            <span class="th-filt-btn" id="tf-${id}-${i}" onclick="tblOpenFilter('${id}',${i},this);event.stopPropagation()" title="Filtrer">▾</span>
+        </div></th>`;
+    }).join('') + '</tr>';
+}
+
+function tblSetData(id, rows) {
+    const t = _tbl[id];
+    t.rows = rows;
+    t.filters = {};
+    t.sortCol = null; t.sortDir = 1;
+    _buildThead(id);   // rebuild headers (resets sort/filter indicators)
+    _tblRender(id);
+}
+
+function tblSort(id, colIdx) {
+    const t = _tbl[id];
+    if (t.sortCol === colIdx) {
+        if (t.sortDir === 1) t.sortDir = -1;
+        else { t.sortCol = null; t.sortDir = 1; }  // 3e clic = supprime le tri
+    } else { t.sortCol = colIdx; t.sortDir = 1; }
+    _tblUpdateHeaders(id);
+    _tblRender(id);
+}
+
+function _tblUpdateHeaders(id) {
+    const t = _tbl[id];
+    t.cols.forEach((c, i) => {
+        if (!c.sortType) return;
+        const sb = document.getElementById(`ts-${id}-${i}`);
+        if (sb) { sb.textContent = t.sortCol===i ? (t.sortDir===1 ? '▲':'▼') : '⇅'; sb.classList.toggle('active', t.sortCol===i); }
+        const fb = document.getElementById(`tf-${id}-${i}`);
+        if (fb) fb.classList.toggle('active', !!(t.filters[i] && t.filters[i].size > 0));
+    });
+}
+
+function tblOpenFilter(id, colIdx, triggerEl) {
+    document.querySelectorAll('.tbl-fp').forEach(p => p.remove());
+    const t = _tbl[id]; if (!t) return;
+    const col     = t.cols[colIdx];
+    const allowed = t.filters[colIdx] || null;
+    const allVals = [...new Set(t.rows.map(r => r.fv[colIdx] ?? ''))].sort((a,b) => {
+        const na=parseFloat(a), nb=parseFloat(b);
+        return (!isNaN(na)&&!isNaN(nb)) ? na-nb : String(a).localeCompare(String(b));
+    });
+    const popup = document.createElement('div');
+    popup.className = 'tbl-fp';
+    popup.dataset.id = id; popup.dataset.col = colIdx;
+    popup.innerHTML = `
+        <div class="tbl-fp-hdr">${col.label}</div>
+        <input class="tbl-fp-search" placeholder="Rechercher…" oninput="tblFpSearch(this)">
+        <div class="tbl-fp-acts">
+            <button onclick="tblFpCheckAll(this,true)">Tout</button>
+            <button onclick="tblFpCheckAll(this,false)">Aucun</button>
+        </div>
+        <div class="tbl-fp-list">${allVals.map(val => `
+            <label class="tbl-fp-item">
+                <input type="checkbox" value="${String(val).replace(/"/g,'&quot;')}" ${!allowed||allowed.has(String(val))?'checked':''}>
+                <span>${val===''?'<em style="color:var(--text-secondary)">(vide)</em>':String(val)}</span>
+            </label>`).join('')}
+        </div>
+        <button class="tbl-fp-ok" onclick="tblFpApply(this.closest('.tbl-fp'))">✓ Appliquer</button>`;
+    document.body.appendChild(popup);
+    // Position
+    const r = triggerEl.getBoundingClientRect(), pw = 220;
+    let left = r.left + window.scrollX;
+    if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+    popup.style.cssText = `top:${r.bottom+window.scrollY+4}px;left:${left}px`;
+    // Auto-apply on checkbox change
+    popup.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', () => tblFpApply(popup)));
+    // Close on outside click
+    setTimeout(() => document.addEventListener('click', function h(e) {
+        if (!popup.contains(e.target) && e.target !== triggerEl) { popup.remove(); document.removeEventListener('click', h); }
+    }), 10);
+}
+
+function tblFpSearch(input) {
+    const q = input.value.toLowerCase();
+    input.closest('.tbl-fp').querySelectorAll('.tbl-fp-item').forEach(item =>
+        item.style.display = item.querySelector('span').textContent.toLowerCase().includes(q) ? '' : 'none');
+}
+function tblFpCheckAll(btn, checked) {
+    btn.closest('.tbl-fp').querySelectorAll('.tbl-fp-list .tbl-fp-item').forEach(item => {
+        if (item.style.display !== 'none') item.querySelector('input').checked = checked;
+    });
+    tblFpApply(btn.closest('.tbl-fp'));
+}
+function tblFpApply(popup) {
+    const id = popup.dataset.id, ci = +popup.dataset.col;
+    const t = _tbl[id]; if (!t) return;
+    const checked = [...popup.querySelectorAll('.tbl-fp-list input:checked')].map(cb => cb.value);
+    const total   = popup.querySelectorAll('.tbl-fp-list input').length;
+    if (checked.length >= total) delete t.filters[ci];
+    else t.filters[ci] = new Set(checked);
+    _tblUpdateHeaders(id);
+    _tblRender(id);
+}
+
+function _tblRender(id) {
+    const t = _tbl[id];
+    let rows = [...t.rows];
+    Object.entries(t.filters).forEach(([ci, allowed]) => {
+        if (allowed) rows = rows.filter(r => allowed.has(String(r.fv[+ci] ?? '')));
+    });
+    if (t.sortCol != null) {
+        const col = t.cols[t.sortCol];
+        rows.sort((a,b) => {
+            const av = a.sv[t.sortCol], bv = b.sv[t.sortCol];
+            const cmp = col.sortType==='num' ? (parseFloat(av)||0)-(parseFloat(bv)||0) : (av||'').localeCompare(bv||'');
+            return cmp * t.sortDir;
+        });
+    }
+    const tbody = document.getElementById(t.tbodyId);
+    if (tbody) tbody.innerHTML = rows.length ? rows.map(r => r.html).join('') :
+        `<tr><td colspan="${t.cols.length}"><div class="empty-state"><div class="ei">🔍</div><p>Aucun résultat</p></div></td></tr>`;
+}
 
 // ══════════════════════════════════════════
 // NAV
@@ -880,10 +1664,21 @@ function nav(id) {
     });
     // Pre-fill today's date
     const today = new Date().toISOString().slice(0, 10);
-    ['bd-date','sd-date','bt-date','st-date'].forEach(i => {
+    ['bd-date','sd-date'].forEach(i => {
         const el = document.getElementById(i);
         if (el && !el.value) el.value = today;
     });
+    // Auto-load on first nav
+    if (id === 'portfolio' && document.getElementById('pf-total-invest')?.textContent === '—') loadPortfolio();
+    if (id === 'dca-dash'   && document.getElementById('dd-invested')?.textContent === '—') loadDcaDash();
+    if (id === 'trading-dash' && document.getElementById('td-open')?.textContent === '—') loadTradingDash();
+    if (id === 'trading-pos') refreshTradingPos();
+    if (id === 'trading-import') importRenderAll();
+    if (id === 'dca-import') importDcaRenderAll();
+    if (id === 'objectifs') loadObjectifs();
+    if (id === 'analyse') {
+        _updateAnalyseDatalist();
+    }
 }
 
 // ══════════════════════════════════════════
@@ -921,95 +1716,644 @@ async function api(endpoint, method = 'GET', data = null) {
         ...(data ? { body: JSON.stringify(data) } : {})
     };
     const res = await fetch(CFG.url + endpoint, opts);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
     const txt = await res.text();
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' — ' + txt.slice(0, 200));
     return txt ? JSON.parse(txt) : {};
+}
+
+// ══════════════════════════════════════════
+// CHART HELPERS
+// ══════════════════════════════════════════
+const CHART_COLORS = [
+    '#C9963E','#27AE60','#3498DB','#9B59B6','#E74C3C',
+    '#1ABC9C','#F39C12','#2ECC71','#E67E22','#16A085',
+    '#8E44AD','#D35400','#27AE60','#2980B9','#C0392B',
+];
+
+function destroyChart(key) {
+    if (charts[key]) { charts[key].destroy(); delete charts[key]; }
+}
+
+function renderDonut(canvasId, labels, data, containerId) {
+    destroyChart(canvasId);
+    const wrap = document.getElementById(containerId);
+    if (!data.length) {
+        wrap.innerHTML = '<div class="chart-placeholder"><div class="ei">📭</div><p>Aucune donnée</p></div>';
+        return;
+    }
+    wrap.innerHTML = '<canvas id="' + canvasId + '"></canvas>';
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    charts[canvasId] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels,
+            datasets: [{ data, backgroundColor: labels.map((lbl, i) => lbl === 'Autres' ? '#4a5568' : (CHART_COLORS[i] || CHART_COLORS[i % CHART_COLORS.length])), borderWidth: 0, hoverOffset: 6 }]
+        },
+        options: {
+            cutout: '62%',
+            plugins: {
+                legend: { position: 'right', labels: { color: '#8b949e', font: { size: 11 }, padding: 6, boxWidth: 10, boxHeight: 10 } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => {
+                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct = total > 0 ? (ctx.parsed / total * 100).toFixed(1) : 0;
+                            return ` ${fmtUSD(ctx.parsed)} (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderBar(canvasId, labels, datasets, containerId) {
+    destroyChart(canvasId);
+    const wrap = document.getElementById(containerId);
+    if (!labels.length) {
+        wrap.innerHTML = '<div class="chart-placeholder"><div class="ei">📭</div><p>Aucune donnée</p></div>';
+        return;
+    }
+    wrap.innerHTML = '<canvas id="' + canvasId + '"></canvas>';
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    charts[canvasId] = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { labels: { color: '#8b949e', font: { size: 12 } } },
+                tooltip: { callbacks: { label: ctx => ' ' + fmtUSD(ctx.parsed.y) } }
+            },
+            scales: {
+                x: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(48,54,61,.6)' } },
+                y: { ticks: { color: '#8b949e', callback: v => fmtUSD(v) }, grid: { color: 'rgba(48,54,61,.6)' } }
+            }
+        }
+    });
+}
+
+function renderDistDonut(canvasId, segments, containerId) {
+    destroyChart(canvasId);
+    const wrap = document.getElementById(containerId);
+    if (!wrap) return;
+    const active = segments.filter(s => s.count > 0);
+    if (!active.length) {
+        wrap.innerHTML = '<div class="chart-placeholder" style="height:140px"><div class="ei">💤</div><p>Aucune position</p></div>';
+        return;
+    }
+    wrap.innerHTML = '<canvas id="' + canvasId + '" style="max-height:190px"></canvas>';
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    charts[canvasId] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: active.map(s => s.label + ' (' + s.count + ')'),
+            datasets: [{
+                data: active.map(s => s.count),
+                backgroundColor: active.map(s => s.color),
+                borderWidth: 2,
+                borderColor: '#161b22',
+                hoverOffset: 5
+            }]
+        },
+        options: {
+            cutout: '60%',
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: { color: '#8b949e', font: { size: 12 }, padding: 12, boxWidth: 12 }
+                },
+                tooltip: {
+                    callbacks: { label: c => ' ' + c.label }
+                }
+            }
+        }
+    });
 }
 
 // ══════════════════════════════════════════
 // PORTFOLIO
 // ══════════════════════════════════════════
+let _pfData   = { dcaRaw: [], trad: [], prices: {} };
+let _pfFilter = { type: 'all', platform: 'all', year: 'all' };
+
+// Agrège les transactions DCA brutes en positions nettes par crypto
+function _aggregateDca(txns) {
+    const map = {};
+    const sorted = txns.slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    sorted.forEach(r => {
+        const sym  = (r.crypto || '').toUpperCase();
+        const qty  = parseFloat(r.quantite) || 0;
+        const amt  = parseFloat(r.total) || 0;
+        const type = (r.type || '').toLowerCase();
+        if (!sym) return;
+        if (!map[sym]) map[sym] = { qty: 0, total: 0 };
+        if (type.includes('achat') || type.includes('buy')) {
+            map[sym].qty   += qty;
+            map[sym].total += amt;
+        } else {
+            if (map[sym].qty > 0) {
+                const pct = Math.min(qty / map[sym].qty, 1);
+                map[sym].total -= map[sym].total * pct;
+                map[sym].qty   -= qty;
+            }
+        }
+    });
+    return Object.entries(map)
+        .filter(([, v]) => v.qty > 0.000001)
+        .map(([sym, v]) => ({
+            crypto:     sym,
+            quantite:   parseFloat(v.qty.toFixed(8)),
+            prix_moyen: v.qty > 0 ? parseFloat((v.total / v.qty).toFixed(2)) : 0,
+            total:      parseFloat(Math.max(v.total, 0).toFixed(2)),
+        }));
+}
+
+// Filtre les transactions DCA brutes selon plateforme et année
+function _filterDcaRaw(txns, platform, year) {
+    const platNorm = platform !== 'all' ? platform.trim().toLowerCase() : 'all';
+    return txns.filter(r => {
+        if (platNorm !== 'all' && (r.plateforme || '').trim().toLowerCase() !== platNorm) return false;
+        if (year !== 'all') {
+            const yr = r.date ? parseInt((r.date + '').substring(0, 4)) : null;
+            if (yr) {
+                if (year === '2026'    && yr !== 2026) return false;
+                if (year === 'pre2026' && yr >= 2026)  return false;
+            }
+        }
+        return true;
+    });
+}
+
+function setPfFilter(key, val) {
+    _pfFilter[key] = val;
+    if (key === 'type') {
+        ['all','dca','trading'].forEach(k => document.getElementById('pff-type-'+k)?.classList.toggle('active', k === val));
+    } else if (key === 'platform') {
+        [['all','all'],['binance','Binance'],['revolut','Revolut'],['swissborg','SwissBorg']].forEach(([k,v]) =>
+            document.getElementById('pff-plat-'+k)?.classList.toggle('active', v === val));
+    } else if (key === 'year') {
+        ['all','2026','pre'].forEach(k => document.getElementById('pff-year-'+k)?.classList.toggle('active', k === val.replace('pre2026','pre')));
+    }
+    _renderPortfolio();
+}
+
+async function _renderPortfolio() {
+    const prices = _pfData.prices;
+
+    // Rangs CoinGecko — réutilise le cache partagé avec la page Objectifs (TTL 5 min)
+    let rankMap = {};
+    try { rankMap = await _fetchCgRanks(); } catch(_) { /* silencieux si hors-ligne */ }
+
+    // DCA : filtre les transactions brutes puis agrège
+    const dcaFiltered = _filterDcaRaw(_pfData.dcaRaw, _pfFilter.platform, _pfFilter.year);
+    let dca  = _pfFilter.type !== 'trading' ? _aggregateDca(dcaFiltered) : [];
+
+    // Trading : filtre les positions
+    let trad = _pfFilter.type !== 'dca' ? _pfData.trad.slice() : [];
+    if (_pfFilter.platform !== 'all') {
+        trad = trad.filter(r => (r.plateforme || '') === _pfFilter.platform);
+    }
+    if (_pfFilter.year !== 'all') {
+        trad = trad.filter(r => {
+            const yr = r.date ? parseInt((r.date + '').substring(0, 4)) : null;
+            if (!yr) return true;
+            if (_pfFilter.year === '2026')    return yr === 2026;
+            if (_pfFilter.year === 'pre2026') return yr < 2026;
+            return true;
+        });
+    }
+
+    const allRows = [...dca, ...trad];
+    let totalInvest = 0, totalValue = 0;
+    allRows.forEach(r => {
+        const sym = v(r,'crypto','Crypto');
+        const qty = parseFloat(v(r,'quantite','Quantité')) || 0;
+        const inv = parseFloat(v(r,'total','Total $')) || 0;
+        totalInvest += inv;
+        const lp = prices[sym];
+        if (lp != null) totalValue += qty * lp;
+    });
+    const totalPnl = totalValue > 0 ? totalValue - totalInvest : null;
+
+    document.getElementById('pf-total-invest').textContent = fmtUSD(totalInvest);
+    document.getElementById('pf-total-value').textContent  = totalValue > 0 ? fmtUSD(totalValue) : '—';
+    const pnlEl = document.getElementById('pf-pnl');
+    if (totalPnl != null) {
+        pnlEl.textContent = (totalPnl >= 0 ? '+' : '') + fmtUSD(totalPnl);
+        pnlEl.className = 'stat-val ' + (totalPnl > 0 ? 'pnl-pos' : totalPnl < 0 ? 'pnl-neg' : 'pnl-zero');
+    } else { pnlEl.textContent = '—'; pnlEl.className = 'stat-val muted'; }
+    document.getElementById('pf-nb-dca').textContent  = dca.length;
+    document.getElementById('pf-nb-trad').textContent = trad.length;
+
+    const allocMap = {};
+    allRows.forEach(r => {
+        const sym = v(r,'crypto','Crypto');
+        const qty = parseFloat(v(r,'quantite','Quantité')) || 0;
+        const inv = parseFloat(v(r,'total','Total $')) || 0;
+        if (!sym || sym === '—') return;
+        const lp = prices[sym];
+        const val = (lp != null && qty > 0) ? qty * lp : inv;
+        allocMap[sym] = (allocMap[sym] || 0) + val;
+    });
+    const allocSorted = Object.entries(allocMap).sort((a,b) => b[1] - a[1]);
+    const top9   = allocSorted.slice(0, 9);
+    const others = allocSorted.slice(9);
+    const othersTotal = others.reduce((s, e) => s + e[1], 0);
+    const donutLabels = top9.map(e => e[0]);
+    const donutData   = top9.map(e => e[1]);
+    if (othersTotal > 0) { donutLabels.push('Autres'); donutData.push(othersTotal); }
+    renderDonut('chart-pf-donut', donutLabels, donutData, 'pf-donut-wrap');
+
+    const dcaTotal  = dca.reduce((s,r)  => s + (parseFloat(v(r,'total','Total $')) || 0), 0);
+    const tradTotal = trad.reduce((s,r) => s + (parseFloat(v(r,'total','Total $')) || 0), 0);
+    renderBar('chart-pf-bar',
+        ['DCA', 'Trading'],
+        [{ label: 'Investi ($)', data: [dcaTotal, tradTotal], backgroundColor: ['#C9963E','#3498DB'], borderRadius: 6 }],
+        'pf-bar-wrap'
+    );
+
+    // Table des positions — fusion DCA+Trading par crypto si filtre "Tout"
+    let tableSource;
+    if (_pfFilter.type === 'all') {
+        // Fusionner les lignes de même crypto
+        const merged = {};
+        allRows.forEach(r => {
+            const sym  = v(r,'crypto','Crypto');
+            const qty  = parseFloat(v(r,'quantite','Quantité')) || 0;
+            const inv  = parseFloat(v(r,'total','Total $')) || 0;
+            const isT  = r.code != null;
+            if (!merged[sym]) merged[sym] = { sym, qty: 0, inv: 0, hasDca: false, hasTrading: false };
+            merged[sym].qty += qty;
+            merged[sym].inv += inv;
+            if (isT) merged[sym].hasTrading = true; else merged[sym].hasDca = true;
+        });
+        tableSource = Object.values(merged).filter(m => m.qty > 0.000001);
+    } else {
+        // Mode DCA seul ou Trading seul : lignes séparées
+        tableSource = allRows.map(r => {
+            const sym = v(r,'crypto','Crypto');
+            const qty = parseFloat(v(r,'quantite','Quantité')) || 0;
+            const inv = parseFloat(v(r,'total','Total $')) || 0;
+            const isT = r.code != null;
+            return { sym, qty, inv, hasDca: !isT, hasTrading: isT };
+        });
+    }
+
+    // Helper affichage rang CoinGecko
+    const rankHtml = rank => {
+        if (!rank)       return '<span style="color:var(--text-secondary);opacity:.45;font-size:11px">—</span>';
+        if (rank === 1)  return '<span title="Rang CoinGecko #1" style="font-size:15px;line-height:1">🥇</span>';
+        if (rank === 2)  return '<span title="Rang CoinGecko #2" style="font-size:15px;line-height:1">🥈</span>';
+        if (rank === 3)  return '<span title="Rang CoinGecko #3" style="font-size:15px;line-height:1">🥉</span>';
+        if (rank <= 10)  return `<strong style="color:var(--gold)">#${rank}</strong>`;
+        if (rank <= 50)  return `<span style="color:var(--text-primary)">#${rank}</span>`;
+        return `<span style="color:var(--text-secondary)">#${rank}</span>`;
+    };
+
+    const pfRows = tableSource.map(r => {
+        const { sym, qty, inv } = r;
+        const rank  = rankMap[sym] || null;
+        const rankSv = rank || 9999;   // cryptos non classées trient en bas
+        const prixA = qty > 0 ? parseFloat((inv / qty).toFixed(6)) : 0;
+        const lp    = prices[sym];
+        const cur   = lp != null ? qty * lp : null;
+        const pnl   = cur != null ? cur - inv : null;
+        const pct   = (pnl != null && inv > 0) ? pnl / inv * 100 : null;
+        // Badge : DCA / Trading / les deux
+        const tag = r.hasDca && r.hasTrading
+            ? '<span style="font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(155,89,182,.15);color:#9B59B6">DCA+Trading</span>'
+            : r.hasTrading
+                ? '<span style="font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(52,152,219,.15);color:#3498DB">Trading</span>'
+                : '<span style="font-size:10px;padding:2px 8px;border-radius:4px;background:var(--gold-bg);color:var(--gold)">DCA</span>';
+        const typeLabel = r.hasDca && r.hasTrading ? 'DCA+Trading' : r.hasTrading ? 'Trading' : 'DCA';
+        return {
+            fv: [rank ? String(rank) : '—', sym, typeLabel, fmtQty(qty), String(prixA), String(inv), lp!=null?String(lp):'', cur!=null?String(cur):'', pnl!=null?String(pnl):''],
+            sv: [rankSv, sym, typeLabel, qty, prixA, inv, lp??0, cur??0, pnl??0],
+            html: `<tr><td style="text-align:center">${rankHtml(rank)}</td><td><strong>${sym}</strong></td><td>${tag}</td><td>${fmtQty(qty)}</td><td>${fmtUSD(prixA)}</td><td><strong>${fmtUSD(inv)}</strong></td><td>${lp!=null?'<span class="price-badge">$'+fmtNum(lp)+'</span>':'—'}</td><td>${cur!=null?fmtUSD(cur):'—'}</td><td>${pnlHtml(pnl,pct)}</td></tr>`
+        };
+    });
+    if (!_tbl['pf']) tblInit('pf', COLS_PF, 'pf-tb', 'thead-pf');
+    tblSetData('pf', pfRows);
+    // Tri par défaut : rang CoinGecko ASC (rang 1 en tête)
+    tblSort('pf', 0);
+}
+
 async function loadPortfolio() {
     const btn = document.getElementById('btn-rp');
     btn.innerHTML = '<span class="spin"></span> Chargement…'; btn.disabled = true;
     try {
-        const d = await api(CFG.ep.portfolio);
+        const [d, tradRaw] = await Promise.all([
+            api(CFG.ep.portfolio),
+            api(CFG.ep.tradingPositions).catch(() => [])
+        ]);
         if (!d) return;
-        const dca  = d.dca  || [];
-        const trad = d.trading || [];
 
-        // Gather all symbols then fetch live prices
+        // Supporte 3 formats de réponse n8n :
+        //  Format A (objet)  : { dca: [...], trading: [...] }
+        //  Format B (tableau): [{ source:'DCA', ... }, { source:'Trading', ... }]
+        //  Format C (objet plat, 1 seul item sorti par webhook) : { source:'DCA', crypto:'SOL', ... }
+        let dcaRaw, trad;
+        if (Array.isArray(d)) {
+            dcaRaw = d.filter(r => (r.source || '').toUpperCase() === 'DCA');
+            trad   = d.filter(r => (r.source || '').toUpperCase() === 'TRADING');
+        } else if (d.dca !== undefined || d.trading !== undefined) {
+            // Format A — objet avec clés dca / trading
+            dcaRaw = d.dca || [];
+            const tradFallback = Array.isArray(tradRaw) ? tradRaw : (tradRaw?.positions || []);
+            trad = tradFallback.length > 0 ? tradFallback : (d.trading || []);
+        } else {
+            // Format C — le webhook a renvoyé un seul item à plat
+            // → on ne peut pas récupérer les autres ; on log et on utilise ce qu'on a
+            console.warn('[César] Réponse portfolio inattendue (objet plat). Vérifier le Code node n8n.', d);
+            dcaRaw = d.source?.toUpperCase() === 'DCA' ? [d] : [];
+            const tradFallback = Array.isArray(tradRaw) ? tradRaw : (tradRaw?.positions || []);
+            trad = tradFallback.length > 0 ? tradFallback : (d.source?.toUpperCase() === 'TRADING' ? [d] : []);
+        }
+
         const symbols = [...new Set([
-            ...dca.map(r  => v(r,'crypto','Crypto')),
+            ...dcaRaw.map(r  => (r.crypto || '').toUpperCase()),
             ...trad.map(r => v(r,'crypto','Crypto')),
         ].filter(s => s && s !== '—'))];
         const prices = await fetchPrices(symbols);
 
-        // DCA table
-        const tbDCA = document.getElementById('tb-dca');
-        tbDCA.innerHTML = dca.length ? dca.map(r => {
-            const sym      = v(r,'crypto','Crypto');
-            const qty      = parseFloat(v(r,'quantite','Quantité')) || 0;
-            const invested = parseFloat(v(r,'total','Total $'))     || 0;
-            const lp       = prices[sym];
-            const curVal   = lp != null ? qty * lp : null;
-            const pnl      = curVal != null ? curVal - invested : null;
-            const pnlPct   = (pnl != null && invested > 0) ? pnl / invested * 100 : null;
-            return `<tr>
-                <td><strong>${sym}</strong></td>
-                <td>${v(r,'quantite','Quantité')}</td>
-                <td>${fmtUSD(v(r,'prix_moyen','Prix achat ($)'))}</td>
-                <td><strong>${fmtUSD(invested)}</strong></td>
-                <td>${lp != null ? '<span class="price-badge">$' + fmtNum(lp) + '</span>' : '<span style="color:var(--text-secondary)">—</span>'}</td>
-                <td>${curVal != null ? fmtUSD(curVal) : '—'}</td>
-                <td>${pnlHtml(pnl, pnlPct)}</td>
-            </tr>`;
-        }).join('') :
-            '<tr><td colspan="7"><div class="empty-state"><div class="ei">📭</div><p>Aucune position DCA active</p></div></td></tr>';
-
-        // Trading table
-        const tbT = document.getElementById('tb-trad');
-        tbT.innerHTML = trad.length ? trad.map(r => {
-            const sym      = v(r,'crypto','Crypto');
-            const qty      = parseFloat(v(r,'quantite','Quantité')) || 0;
-            const invested = parseFloat(v(r,'total','Total $'))     || 0;
-            const lp       = prices[sym];
-            const curVal   = lp != null ? qty * lp : null;
-            const pnl      = curVal != null ? curVal - invested : null;
-            const pnlPct   = (pnl != null && invested > 0) ? pnl / invested * 100 : null;
-            return `<tr>
-                <td><span class="code-tag">${v(r,'code','Code')}</span></td>
-                <td>${v(r,'date','Date')}</td>
-                <td><strong>${sym}</strong></td>
-                <td>${v(r,'quantite','Quantité')}</td>
-                <td>${fmtUSD(v(r,'prix','Prix achat ($)'))}</td>
-                <td><strong>${fmtUSD(invested)}</strong></td>
-                <td style="color:var(--green)">${v(r,'objectif','Objectif')}</td>
-                <td>${lp != null ? '<span class="price-badge">$' + fmtNum(lp) + '</span>' : '—'}</td>
-                <td>${curVal != null ? fmtUSD(curVal) : '—'}</td>
-                <td>${pnlHtml(pnl, pnlPct)}</td>
-            </tr>`;
-        }).join('') :
-            '<tr><td colspan="10"><div class="empty-state"><div class="ei">💤</div><p>Aucune position trading ouverte</p></div></td></tr>';
-
-        // Stats
-        const tot = [...dca,...trad].reduce((s,r) => s + (parseFloat(v(r,'total','Total $')) || 0), 0);
-        document.getElementById('st-total').textContent = fmtUSD(tot);
-        document.getElementById('st-dca').textContent   = dca.length;
-        document.getElementById('st-trad').textContent  = trad.length;
+        _pfData = { dcaRaw, trad, prices };
+        _renderPortfolio();
 
         const lu = document.getElementById('last-update');
         if (lu) lu.textContent = 'Mis à jour ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-
         notify('✅ Portefeuille actualisé', 'success');
     } catch(e) { notify('❌ ' + e.message, 'error'); }
     finally { btn.innerHTML = '🔄 Actualiser'; btn.disabled = false; }
 }
 
 // ══════════════════════════════════════════
-// TRADING POSITIONS (avec vente inline)
+// DCA DASHBOARD
 // ══════════════════════════════════════════
+let _ddData = { rawTxns: [], prices: {} };
+let _ddPlatform = 'all';
+
+function setDdFilter(plat) {
+    _ddPlatform = plat;
+    // Mise à jour des boutons actifs
+    [['all','all'],['binance','Binance'],['revolut','Revolut'],['swissborg','SwissBorg']].forEach(([k, val]) => {
+        document.getElementById('ddf-plat-' + k)?.classList.toggle('active', val.toLowerCase() === plat.toLowerCase());
+    });
+    if (_ddData.rawTxns.length) _renderDcaDash();
+}
+
+function _renderDcaDash() {
+    const filtered = _filterDcaRaw(_ddData.rawTxns, _ddPlatform, 'all');
+    const dca      = _aggregateDca(filtered);
+    const prices   = _ddData.prices;
+
+    let invested = 0, curTotal = 0;
+    dca.forEach(r => {
+        const sym = v(r,'crypto','Crypto');
+        const qty = parseFloat(v(r,'quantite','Quantité')) || 0;
+        const inv = parseFloat(v(r,'total','Total $')) || 0;
+        invested += inv;
+        const lp = prices[sym];
+        if (lp != null) curTotal += qty * lp;
+    });
+    const pnl    = curTotal > 0 ? curTotal - invested : null;
+    const pnlPct = (pnl != null && invested > 0) ? pnl / invested * 100 : null;
+
+    document.getElementById('dd-invested').textContent = fmtUSD(invested);
+    document.getElementById('dd-value').textContent    = curTotal > 0 ? fmtUSD(curTotal) : '—';
+    document.getElementById('dd-nb').textContent       = dca.length;
+    const pnlEl = document.getElementById('dd-pnl');
+    if (pnl != null) {
+        const s = pnl >= 0 ? '+' : '';
+        pnlEl.textContent = `${s}${fmtUSD(pnl)}${pnlPct != null ? ` (${s}${pnlPct.toFixed(2)}%)` : ''}`;
+        pnlEl.className = 'stat-val ' + (pnl > 0 ? 'pnl-pos' : pnl < 0 ? 'pnl-neg' : 'pnl-zero');
+    } else { pnlEl.textContent = '—'; pnlEl.className = 'stat-val muted'; }
+
+    const ddRows = dca.map(r => {
+        const sym = v(r,'crypto','Crypto');
+        const qty = parseFloat(v(r,'quantite','Quantité')) || 0;
+        const inv = parseFloat(v(r,'total','Total $')) || 0;
+        const pm  = qty > 0 ? parseFloat((inv / qty).toFixed(6)) : 0;  // total investi ÷ quantité
+        const lp  = prices[sym];
+        const cur = lp != null ? qty * lp : null;
+        const pnl = cur != null ? cur - inv : null;
+        const pct = (pnl != null && inv > 0) ? pnl / inv * 100 : null;
+        return {
+            fv: [sym, fmtQty(qty), String(pm), String(inv), lp!=null?String(lp):'', cur!=null?String(cur):'', pnl!=null?String(pnl):''],
+            sv: [sym, qty, pm, inv, lp??0, cur??0, pnl??0],
+            html: `<tr><td><strong>${sym}</strong></td><td>${fmtQty(qty)}</td><td>${fmtUSD(pm)}</td><td><strong>${fmtUSD(inv)}</strong></td><td>${lp!=null?'<span class="price-badge">$'+fmtNum(lp)+'</span>':'—'}</td><td>${cur!=null?fmtUSD(cur):'—'}</td><td>${pnlHtml(pnl,pct)}</td></tr>`
+        };
+    });
+    if (!_tbl['dd']) tblInit('dd', COLS_DD, 'dd-tb', 'thead-dd');
+    tblSetData('dd', ddRows);
+}
+
+async function loadDcaDash() {
+    const btn = document.getElementById('btn-rdd');
+    btn.innerHTML = '<span class="spin"></span>'; btn.disabled = true;
+    try {
+        const d = await api(CFG.ep.portfolio);
+        // Supporte format tableau { source:'DCA' } ou objet { dca: [...] }
+        const rawTxns = Array.isArray(d)
+            ? d.filter(r => (r.source || '').toUpperCase() === 'DCA')
+            : (d?.dca || []);
+
+        // Récupère tous les symboles (toutes plateformes) pour avoir les prix
+        const allSym = [...new Set(_aggregateDca(rawTxns).map(r => r.crypto).filter(s => s && s !== '—'))];
+        const prices = await fetchPrices(allSym);
+
+        _ddData = { rawTxns, prices };
+        _renderDcaDash();
+
+        const lu = document.getElementById('last-update-dca');
+        if (lu) lu.textContent = 'Mis à jour ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+        notify('✅ Dashboard DCA actualisé', 'success');
+    } catch(e) { notify('❌ ' + e.message, 'error'); }
+    finally { btn.innerHTML = '🔄 Actualiser'; btn.disabled = false; }
+}
+
+// ══════════════════════════════════════════
+// DCA HISTORIQUE
+// ══════════════════════════════════════════
+async function loadDcaHistory() {
+    const btn = document.getElementById('btn-rdh');
+    btn.innerHTML = '<span class="spin"></span>'; btn.disabled = true;
+    try {
+        const data = await api(CFG.ep.dcaHistory);
+        const rows = Array.isArray(data) ? data : (data?.history || []);
+        if (!_tbl['dh']) tblInit('dh', COLS_DH, 'dh-tb', 'thead-dh');
+        const dhRows = rows.map(r => {
+            const date   = v(r,'date','Date');
+            const type   = v(r,'type','Type');
+            const crypto = v(r,'crypto','Crypto');
+            const qty    = v(r,'quantite','Quantité');
+            const mont   = parseFloat(v(r,'montant','Montant')) || 0;
+            const prix   = parseFloat(v(r,'prix','Prix')) || 0;
+            const isAchat = (type||'').toLowerCase().includes('achat') || (type||'').toLowerCase().includes('buy');
+            return {
+                fv: [date, type, crypto, fmtQty(qty), String(mont), String(prix)],
+                sv: [date, type, crypto, parseFloat(qty)||0, mont, prix],
+                html: `<tr><td>${date}</td><td><span class="badge ${isAchat?'badge-open':'badge-closed'}">${type}</span></td><td><strong>${crypto}</strong></td><td>${fmtQty(qty)}</td><td>${fmtUSD(mont)}</td><td>${fmtUSD(prix)}</td></tr>`
+            };
+        });
+        tblSetData('dh', dhRows);
+        const lu = document.getElementById('last-update-dca-hist');
+        if (lu) lu.textContent = 'Mis à jour ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+        notify('✅ Historique DCA chargé', 'success');
+    } catch(e) {
+        document.getElementById('dh-tb').innerHTML =
+            `<tr><td colspan="6"><div class="empty-state"><div class="ei">⚙️</div><p>Configure <code style="color:var(--gold)">/cesar-dca-history</code> dans n8n pour voir l'historique</p></div></td></tr>`;
+        notify('⚠️ Endpoint historique DCA non configuré', 'info');
+    }
+    finally { btn.innerHTML = '🔄 Actualiser'; btn.disabled = false; }
+}
+
+// ══════════════════════════════════════════
+// TRADING DASHBOARD
+// ══════════════════════════════════════════
+async function loadTradingDash() {
+    const btn = document.getElementById('btn-rtd');
+    btn.innerHTML = '<span class="spin"></span>'; btn.disabled = true;
+    try {
+        const raw  = await api(CFG.ep.tradingPositions);
+        const trad = Array.isArray(raw) ? raw : (raw.positions || []);
+        const symbols = [...new Set(trad.map(r => v(r,'crypto','Crypto')).filter(s => s && s !== '—'))];
+        const prices  = await fetchPrices(symbols);
+
+        let invested = 0, curTotal = 0;
+        let cntNeg = 0, cntGray = 0, cntBlue = 0, cntGreen = 0;
+        trad.forEach(r => {
+            const sym    = v(r,'crypto','Crypto');
+            const qty    = parseFloat(v(r,'quantite','Quantité')) || 0;
+            const inv    = parseFloat(v(r,'total','Total $')) || 0;
+            const prix   = parseFloat(v(r,'prix','Prix achat ($)')) || 0;
+            const objPct = parseFloat(v(r,'objectif','Objectif')) || 0;
+            invested += inv;
+            const lp = prices[sym];
+            if (lp != null) {
+                curTotal += qty * lp;
+                const gainPct = prix > 0 ? (lp - prix) / prix * 100 : null;
+                if (gainPct == null)           { /* pas de prix */ }
+                else if (gainPct < 0)          cntNeg++;
+                else if (gainPct < objPct / 2) cntGray++;
+                else if (gainPct < objPct)     cntBlue++;
+                else                           cntGreen++;
+            }
+        });
+        const pnlOpen = curTotal > 0 ? curTotal - invested : null;
+        const pnlPct  = (pnlOpen != null && invested > 0) ? pnlOpen / invested * 100 : null;
+
+        document.getElementById('td-open').textContent     = trad.length;
+        document.getElementById('td-invested').textContent = fmtUSD(invested);
+
+        renderDistDonut('chart-td-dist', [
+            { label: 'En négatif',  count: cntNeg,   color: '#C0392B' },
+            { label: '0 → obj/2',   count: cntGray,  color: '#555e68' },
+            { label: 'obj/2 → obj', count: cntBlue,  color: '#3498DB' },
+            { label: '≥ objectif',  count: cntGreen, color: '#27AE60' },
+        ], 'td-donut-wrap');
+        const pnlEl = document.getElementById('td-pnl');
+        if (pnlOpen != null) {
+            const s = pnlOpen >= 0 ? '+' : '';
+            pnlEl.textContent = `${s}${fmtUSD(pnlOpen)}${pnlPct != null ? ` (${s}${pnlPct.toFixed(1)}%)` : ''}`;
+            pnlEl.className = 'stat-val ' + (pnlOpen > 0 ? 'pnl-pos' : pnlOpen < 0 ? 'pnl-neg' : 'pnl-zero');
+        } else { pnlEl.textContent = '—'; pnlEl.className = 'stat-val muted'; }
+
+        // Build table rows
+        const tableRows = trad.map(r => {
+            const sym    = v(r,'crypto','Crypto');
+            const date   = v(r,'date','Date');
+            const qty    = parseFloat(v(r,'quantite','Quantité')) || 0;
+            const inv    = parseFloat(v(r,'total','Total $')) || 0;
+            const prix   = parseFloat(v(r,'prix','Prix achat ($)')) || 0;
+            const objStr = v(r,'objectif','Objectif');
+            const objPct = parseFloat(objStr) || 0;
+            const cible  = prix > 0 && objPct > 0 ? prix * (1 + objPct / 100) : null;
+            const lp     = prices[sym];
+            const pnl    = lp != null ? qty * lp - inv : null;
+            const pct    = (pnl != null && inv > 0) ? pnl / inv * 100 : null;
+            const plat   = r.plateforme || '';
+            return {
+                fv: [date, sym, String(inv), String(objPct), cible != null ? String(cible) : '', lp != null ? String(lp) : '', pnl != null ? String(pnl) : '', pct != null ? String(pct) : ''],
+                sv: [date, sym, inv, objPct, cible ?? -1e9, lp ?? -1e9, pnl ?? -1e9, pct ?? -1e9],
+                html: `<tr>
+                    <td class="nowrap">${date}</td>
+                    <td><strong>${sym}</strong>${plat ? '<br>'+platBadge(plat) : ''}</td>
+                    <td class="nowrap">${fmtUSD(inv)}</td>
+                    <td style="color:var(--green)">${objStr}</td>
+                    <td class="nowrap">${cible != null ? '<span class="price-badge">$'+fmtNum(cible)+'</span>' : '—'}</td>
+                    <td class="nowrap">${prixActuelBadge(lp, prix, objPct)}</td>
+                    <td>${pnlAmtHtml(pnl, pct, objPct)}</td>
+                    <td>${roiHtml(pct, objPct)}</td>
+                </tr>`
+            };
+        });
+
+        if (!_tbl['td-open']) tblInit('td-open', COLS_DASH_TRADING, 'td-tb-open', 'thead-td-open');
+        if (tableRows.length) tblSetData('td-open', tableRows);
+        else document.getElementById('td-tb-open').innerHTML =
+            '<tr><td colspan="7"><div class="empty-state"><div class="ei">💤</div><p>Aucune position ouverte</p></div></td></tr>';
+
+        // P&L réalisé + taux de réussite + positions fermées
+        try {
+            const hist  = await api(CFG.ep.tradingHistory);
+            const hRows = Array.isArray(hist) ? hist : (hist?.history || []);
+            let realized = 0, wins = 0, capitalCloture = 0;
+            hRows.forEach(r => {
+                const inv = parseFloat(v(r,'total_achat','investi')) || 0;
+                const rev = parseFloat(v(r,'total_vente','revenu'))  || 0;
+                const pnl = rev - inv;
+                realized       += pnl;
+                capitalCloture += inv;
+                if (pnl > 0) wins++;
+            });
+            document.getElementById('td-closed').textContent        = hRows.length;
+            document.getElementById('td-capital-closed').textContent = fmtUSD(capitalCloture);
+            const rEl = document.getElementById('td-realized');
+            const s   = realized >= 0 ? '+' : '';
+            rEl.textContent = s + fmtUSD(realized);
+            rEl.className = 'stat-val ' + (realized > 0 ? 'pnl-pos' : realized < 0 ? 'pnl-neg' : 'pnl-zero');
+            const wrEl = document.getElementById('td-winrate');
+            if (hRows.length > 0) {
+                const wr = Math.round(wins / hRows.length * 100);
+                wrEl.textContent = wr + '%';
+                wrEl.className = 'stat-val ' + (wr >= 50 ? 'pnl-pos' : 'pnl-neg');
+            } else { wrEl.textContent = '—'; wrEl.className = 'stat-val muted'; }
+        } catch(_) {
+            document.getElementById('td-realized').textContent      = '—';
+            document.getElementById('td-winrate').textContent       = '—';
+            document.getElementById('td-closed').textContent        = '—';
+            document.getElementById('td-capital-closed').textContent = '—';
+        }
+
+        const lu = document.getElementById('last-update-dash');
+        if (lu) lu.textContent = 'Mis à jour ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+        notify('✅ Dashboard actualisé', 'success');
+    } catch(e) { notify('❌ ' + e.message, 'error'); }
+    finally { btn.innerHTML = '🔄 Actualiser'; btn.disabled = false; }
+}
+
+// ══════════════════════════════════════════
+// TRADING POSITIONS — tabs
+// ══════════════════════════════════════════
+let currentPosTab = 'open';
 let tradingPosData = {};
+
+function switchPosTab(tab) {
+    currentPosTab = tab;
+    document.getElementById('tab-pos-open').classList.toggle('active', tab === 'open');
+    document.getElementById('tab-pos-hist').classList.toggle('active', tab === 'hist');
+    document.getElementById('tpos-panel-open').style.display = tab === 'open' ? '' : 'none';
+    document.getElementById('tpos-panel-hist').style.display = tab === 'hist' ? '' : 'none';
+    // Show/hide quick buy button (only for open tab)
+    document.getElementById('btn-quick-buy').style.display = tab === 'open' ? '' : 'none';
+    refreshTradingPos();
+}
+
+async function refreshTradingPos() {
+    if (currentPosTab === 'open') await loadTradingPos();
+    else await loadTradingHistory();
+}
 
 async function loadTradingPos() {
     const btn = document.getElementById('btn-rtp');
@@ -1029,41 +2373,35 @@ async function loadTradingPos() {
         });
 
         const today = new Date().toISOString().slice(0,10);
-        const tb    = document.getElementById('tb-tpos');
+
+        if (!_tbl['tpos']) tblInit('tpos', COLS_POS_OPEN, 'tb-tpos', 'thead-tpos');
 
         if (!rows.length) {
-            tb.innerHTML = '<tr><td colspan="11"><div class="empty-state"><div class="ei">💤</div><p>Aucune position ouverte</p></div></td></tr>';
+            tblSetData('tpos', []);
+            document.getElementById('tb-tpos').innerHTML =
+                '<tr><td colspan="9"><div class="empty-state"><div class="ei">💤</div><p>Aucune position ouverte</p></div></td></tr>';
         } else {
-            tb.innerHTML = rows.map(r => {
-                const code     = v(r,'code','Code');
-                const sym      = v(r,'crypto','Crypto');
-                const qty      = parseFloat(v(r,'quantite','Quantité')) || 0;
-                const invested = parseFloat(v(r,'total','Total $')) || 0;
-                const lp       = prices[sym];
-                const curVal   = lp != null ? qty * lp : null;
-                const pnl      = curVal != null ? curVal - invested : null;
-                const pnlPct   = (pnl != null && invested > 0) ? pnl / invested * 100 : null;
-                return `
-                <tr id="tpos-row-${code}">
-                    <td><span class="code-tag">${code}</span></td>
-                    <td>${v(r,'date','Date')}</td>
-                    <td><strong>${sym}</strong></td>
-                    <td>${qty}</td>
-                    <td>${fmtUSD(v(r,'prix','Prix achat ($)'))}</td>
-                    <td>${fmtUSD(invested)}</td>
-                    <td style="color:var(--green)">${v(r,'objectif','Objectif')}</td>
-                    <td>${lp != null ? '<span class="price-badge">$'+fmtNum(lp)+'</span>' : '—'}</td>
-                    <td>${curVal != null ? fmtUSD(curVal) : '—'}</td>
-                    <td>${pnlHtml(pnl, pnlPct)}</td>
-                    <td><button class="btn btn-danger btn-sm" onclick="toggleSellRow('${code}')">🔴 Vendre</button></td>
-                </tr>
-                <tr id="tpos-sell-${code}" style="display:none">
-                    <td colspan="11" style="padding:0">
+            const tableRows = rows.map(r => {
+                const code   = v(r,'code','Code');
+                const sym    = v(r,'crypto','Crypto');
+                const date   = v(r,'date','Date');
+                const qty    = parseFloat(v(r,'quantite','Quantité')) || 0;
+                const inv    = parseFloat(v(r,'total','Total $')) || 0;
+                const prix   = parseFloat(v(r,'prix','Prix achat ($)')) || 0;
+                const objStr = v(r,'objectif','Objectif');
+                const objPct = parseFloat(objStr) || 0;
+                const plat   = r.plateforme || '';
+                const cible  = prix > 0 && objPct > 0 ? prix * (1 + objPct / 100) : null;
+                const lp     = prices[sym];
+                const pnl    = lp != null ? qty * lp - inv : null;
+                const pnlPct = (pnl != null && inv > 0) ? pnl / inv * 100 : null;
+                const sellRow = `<tr id="tpos-sell-${code}" style="display:none">
+                    <td colspan="10" style="padding:0">
                         <div class="sell-form-inner">
                             <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">
                                 Clôturer <strong style="color:var(--text-primary)">${sym}</strong>
                                 — <span class="code-tag">${code}</span>
-                                — Quantité totale : <strong style="color:var(--text-primary)">${qty}</strong>
+                                — Quantité totale : <strong style="color:var(--text-primary)">${fmtQty(qty)}</strong>
                             </div>
                             <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
                                 <div class="fg" style="min-width:130px">
@@ -1092,10 +2430,77 @@ async function loadTradingPos() {
                         </div>
                     </td>
                 </tr>`;
-            }).join('');
+                return {
+                    fv: [date, sym, fmtQty(qty), String(inv), String(objPct), cible != null ? String(cible) : '', lp != null ? String(lp) : '', pnl != null ? String(pnl) : '', pnlPct != null ? String(pnlPct) : '', ''],
+                    sv: [date, sym, qty, inv, objPct, cible ?? -1e9, lp ?? -1e9, pnl ?? -1e9, pnlPct ?? -1e9, 0],
+                    html: `<tr id="tpos-row-${code}">
+                        <td class="nowrap">${date}</td>
+                        <td><strong>${sym}</strong>${plat ? '<br>'+platBadge(plat) : ''}</td>
+                        <td>${fmtQty(qty)}</td>
+                        <td class="nowrap">${fmtUSD(inv)}</td>
+                        <td style="color:var(--green)">${objStr}</td>
+                        <td class="nowrap">${cible != null ? '<span class="price-badge">$'+fmtNum(cible)+'</span>' : '—'}</td>
+                        <td class="nowrap">${prixActuelBadge(lp, prix, objPct)}</td>
+                        <td>${pnlAmtHtml(pnl, pnlPct, objPct)}</td>
+                        <td>${roiHtml(pnlPct, objPct)}</td>
+                        <td>${cloturerBtn(lp, prix, objPct, code)}</td>
+                    </tr>${sellRow}`
+                };
+            });
+            tblSetData('tpos', tableRows);
         }
         notify('✅ Positions actualisées', 'success');
     } catch(e) { notify('❌ ' + e.message, 'error'); }
+    finally { btn.innerHTML = '🔄 Actualiser'; btn.disabled = false; }
+}
+
+async function loadTradingHistory() {
+    const btn = document.getElementById('btn-rtp');
+    btn.innerHTML = '<span class="spin"></span>'; btn.disabled = true;
+    try {
+        const hist  = await api(CFG.ep.tradingHistory);
+        const hRows = Array.isArray(hist) ? hist : (hist?.history || []);
+
+        if (!_tbl['tpos-hist']) tblInit('tpos-hist', COLS_POS_HIST, 'tb-tpos-hist', 'thead-tpos-hist');
+
+        if (!hRows.length) {
+            tblSetData('tpos-hist', []);
+            document.getElementById('tb-tpos-hist').innerHTML =
+                '<tr><td colspan="7"><div class="empty-state"><div class="ei">📋</div><p>Aucune position clôturée</p></div></td></tr>';
+        } else {
+            const tableRows = hRows.map(r => {
+                const crypto     = v(r,'crypto','Crypto');
+                const date_achat = v(r,'date_achat','Date achat');
+                const date_vente = v(r,'date_vente','Date vente');
+                const inv  = parseFloat(v(r,'total_achat','investi')) || 0;
+                const rev  = parseFloat(v(r,'total_vente','revenu'))  || 0;
+                const pnl  = rev - inv;
+                const pct  = inv > 0 ? pnl / inv * 100 : null;
+                const sign = pnl >= 0 ? '+' : '';
+                const plat = r.plateforme || '';
+                return {
+                    fv: [crypto, date_achat, date_vente, String(inv), String(rev), String(pnl), pct != null ? String(pct) : ''],
+                    sv: [crypto, date_achat, date_vente, inv, rev, pnl, pct ?? -1e9],
+                    html: `<tr>
+                        <td><strong>${crypto}</strong>${plat ? '<br>'+platBadge(plat) : ''}</td>
+                        <td>${date_achat}</td>
+                        <td>${date_vente}</td>
+                        <td>${fmtUSD(inv)}</td>
+                        <td>${fmtUSD(rev)}</td>
+                        <td>${pnlHtml(pnl, pct)}</td>
+                        <td class="${pnl > 0 ? 'pnl-pos' : pnl < 0 ? 'pnl-neg' : 'pnl-zero'}">${pct != null ? sign + pct.toFixed(2) + '%' : '—'}</td>
+                    </tr>`
+                };
+            });
+            tblSetData('tpos-hist', tableRows);
+        }
+        notify('✅ Historique chargé', 'success');
+    } catch(e) {
+        if (!_tbl['tpos-hist']) tblInit('tpos-hist', COLS_POS_HIST, 'tb-tpos-hist', 'thead-tpos-hist');
+        document.getElementById('tb-tpos-hist').innerHTML =
+            '<tr><td colspan="7"><div class="empty-state"><div class="ei">⚙️</div><p>Configure <code style="color:var(--gold)">/cesar-trading-history</code> dans n8n pour voir l\'historique</p></div></td></tr>';
+        notify('⚠️ Endpoint historique non configuré', 'info');
+    }
     finally { btn.innerHTML = '🔄 Actualiser'; btn.disabled = false; }
 }
 
@@ -1118,13 +2523,11 @@ async function submitInlineSell(code) {
     const price = parseFloat(document.getElementById('isell-price-' + code).value);
     const qty   = parseFloat(document.getElementById('isell-qty-' + code).value);
     if (!date || isNaN(price) || isNaN(qty) || qty <= 0) { notify('⚠️ Remplis tous les champs', 'error'); return; }
-    const dp = date.split('-');
-    const fd = `${dp[2]} ${dp[1]} ${dp[0]}`;
     btn.innerHTML = '<span class="spin"></span>'; btn.disabled = true;
     try {
         const r = await api(CFG.ep.tradingSell, 'POST', {
-            message: `${code} / ${fd} / ${price} / ${qty}`,
-            data: { code, dateVente: fd, prixVente: price, quantite: qty }
+            message: `${code} / ${date} / ${price} / ${qty}`,
+            data: { code, dateVente: date, prixVente: price, quantite: qty }
         });
         if (r !== null) { notify('✅ Position clôturée !', 'success'); await loadTradingPos(); }
     } catch(e) {
@@ -1142,6 +2545,12 @@ function toggleQuickBuy() {
     if (panel.classList.contains('open')) {
         const d = document.getElementById('qb-date');
         if (d && !d.value) d.value = new Date().toISOString().slice(0,10);
+    } else {
+        // Réinitialise le panneau de confirmation à la fermeture
+        const cp = document.getElementById('cp-quick-buy');
+        const btn = document.getElementById('qb-submit');
+        if (cp) cp.classList.remove('show');
+        if (btn) { btn.innerHTML = '🚀 Ouvrir la position'; btn.className = 'btn btn-primary'; }
     }
 }
 
@@ -1149,54 +2558,73 @@ function calcQuickBuy() {
     const qEl = document.getElementById('qb-qty');
     const tEl = document.getElementById('qb-total');
     const pEl = document.getElementById('qb-price');
-
-    // Vide les champs auto-calculés
     [qEl, tEl, pEl].forEach(el => {
         if (el.classList.contains('calculated')) { el.value = ''; el.classList.remove('calculated'); }
     });
-
     const q = parseFloat(qEl.value) || null;
     const t = parseFloat(tEl.value) || null;
     const p = parseFloat(pEl.value) || null;
-
     [['qty',qEl],['total',tEl],['price',pEl]].forEach(([key, el]) => {
         const tag = document.getElementById('qb-'+key+'-tag');
         if (tag) { tag.textContent = ''; tag.classList.remove('show'); }
     });
-
     function setC(key, el, val, dec) {
         el.value = val.toFixed(dec);
         el.classList.add('calculated');
         const tag = document.getElementById('qb-'+key+'-tag');
         if (tag) { tag.textContent = 'calculé'; tag.classList.add('show'); }
     }
-
     if (q && t && !p)      setC('price', pEl, t / q, 2);
     else if (q && p && !t) setC('total', tEl, q * p, 2);
     else if (t && p && !q) setC('qty',   qEl, t / p, 8);
 }
 
 async function handleQuickBuy() {
-    const crypto  = document.getElementById('qb-crypto').value.trim().toUpperCase();
-    const date    = document.getElementById('qb-date').value;
-    const target  = parseFloat(document.getElementById('qb-target').value) || 0;
+    const crypto     = document.getElementById('qb-crypto').value.trim().toUpperCase();
+    const date       = document.getElementById('qb-date').value;
+    const target     = parseFloat(document.getElementById('qb-target').value) || 0;
+    const plateforme = document.getElementById('qb-platform')?.value || '';
+
     if (!crypto || !date) { notify('⚠️ Crypto et date sont requis', 'error'); return; }
+
     const q = parseFloat(document.getElementById('qb-qty').value);
     const t = parseFloat(document.getElementById('qb-total').value);
     const p = parseFloat(document.getElementById('qb-price').value);
-    const filled = [q, t, p].filter(n => !isNaN(n) && n > 0).length;
-    if (filled < 2) { notify('⚠️ Remplis au moins 2 champs parmi Quantité / Total / Prix', 'error'); return; }
+    if ([q, t, p].filter(n => !isNaN(n) && n > 0).length < 2) {
+        notify('⚠️ Remplis au moins 2 champs parmi Quantité / Total / Prix', 'error'); return;
+    }
     calcQuickBuy();
     const qF = parseFloat(document.getElementById('qb-qty').value);
     const tF = parseFloat(document.getElementById('qb-total').value);
+    const pF = parseFloat(document.getElementById('qb-price').value);
+
     const btn = document.getElementById('qb-submit');
+    const cp  = document.getElementById('cp-quick-buy');
+
+    // Étape 1 — Afficher la confirmation
+    if (!cp.classList.contains('show')) {
+        document.getElementById('cd-quick-buy').innerHTML = [
+            `<div class="confirm-row"><span class="ck">Crypto</span><span class="cv">${crypto}</span></div>`,
+            `<div class="confirm-row"><span class="ck">Date</span><span class="cv">${fmtDate(date)}</span></div>`,
+            plateforme ? `<div class="confirm-row"><span class="ck">Plateforme</span><span class="cv">${plateforme}</span></div>` : '',
+            `<div class="confirm-row"><span class="ck">Quantité</span><span class="cv">${qF}</span></div>`,
+            `<div class="confirm-row"><span class="ck">Total investi</span><span class="cv">${fmtUSD(tF)}</span></div>`,
+            `<div class="confirm-row"><span class="ck">Prix unitaire</span><span class="cv">${fmtUSD(pF)}</span></div>`,
+            target ? `<div class="confirm-row"><span class="ck">Objectif</span><span class="cv">+${target}%</span></div>` : '',
+        ].join('');
+        cp.classList.add('show');
+        btn.innerHTML = '✅ Confirmer et enregistrer';
+        btn.className = 'btn btn-success';
+        return;
+    }
+
+    // Étape 2 — Envoi
     btn.innerHTML = '<span class="spin"></span> Envoi…'; btn.disabled = true;
-    const dp = date.split('-');
-    const fd = `${dp[2]} ${dp[1]} ${dp[0]}`;
     try {
+        const code = `T-${new Date().getFullYear()}-${String(Math.floor(Math.random()*9000)+1000)}`;
         const r = await api(CFG.ep.tradingBuy, 'POST', {
-            message: `${crypto} / ${fd} / ${qF} / ${tF} / ${target}`,
-            data: { crypto, date: fd, quantite: qF, prixTotal: tF, objectif: target }
+            message: `${crypto} / ${date} / ${qF} / ${tF} / ${target}`,
+            data: { crypto, date, quantite: qF, prixTotal: tF, objectif: target, code, plateforme }
         });
         if (r !== null) {
             notify('✅ Position ouverte !', 'success');
@@ -1208,112 +2636,16 @@ async function handleQuickBuy() {
                 const tag = document.getElementById('qb-'+k+'-tag');
                 if (tag) { tag.textContent = ''; tag.classList.remove('show'); }
             });
+            cp.classList.remove('show');
             toggleQuickBuy();
             await loadTradingPos();
         }
-    } catch(e) { notify('❌ ' + e.message, 'error'); }
-    finally { btn.innerHTML = '🚀 Ouvrir la position'; btn.disabled = false; }
-}
-
-// ══════════════════════════════════════════
-// TRADING DASHBOARD
-// ══════════════════════════════════════════
-async function loadTradingDash() {
-    const btn = document.getElementById('btn-rtd');
-    btn.innerHTML = '<span class="spin"></span>'; btn.disabled = true;
-    try {
-        const d    = await api(CFG.ep.portfolio);
-        const trad = (d?.trading) || [];
-        const symbols = [...new Set(trad.map(r => v(r,'crypto','Crypto')).filter(s => s && s !== '—'))];
-        const prices  = await fetchPrices(symbols);
-
-        let invested = 0, curTotal = 0;
-        trad.forEach(r => {
-            const sym = v(r,'crypto','Crypto');
-            const qty = parseFloat(v(r,'quantite','Quantité')) || 0;
-            const inv = parseFloat(v(r,'total','Total $')) || 0;
-            invested += inv;
-            const lp = prices[sym];
-            if (lp != null) curTotal += qty * lp;
-        });
-        const pnlOpen = curTotal > 0 ? curTotal - invested : null;
-        const pnlPct  = (pnlOpen != null && invested > 0) ? pnlOpen / invested * 100 : null;
-
-        document.getElementById('td-open').textContent     = trad.length;
-        document.getElementById('td-invested').textContent = fmtUSD(invested);
-        document.getElementById('td-value').textContent    = curTotal > 0 ? fmtUSD(curTotal) : '—';
-        const pnlEl = document.getElementById('td-pnl');
-        if (pnlOpen != null) {
-            const s = pnlOpen >= 0 ? '+' : '';
-            pnlEl.textContent = `${s}${fmtUSD(pnlOpen)}${pnlPct != null ? ` (${s}${pnlPct.toFixed(2)}%)` : ''}`;
-            pnlEl.className = 'stat-val ' + (pnlOpen > 0 ? 'pnl-pos' : pnlOpen < 0 ? 'pnl-neg' : 'pnl-zero');
-        } else { pnlEl.textContent = '—'; pnlEl.className = 'stat-val muted'; }
-
-        const tbOpen = document.getElementById('td-tb-open');
-        tbOpen.innerHTML = trad.length ? trad.map(r => {
-            const sym = v(r,'crypto','Crypto');
-            const qty = parseFloat(v(r,'quantite','Quantité')) || 0;
-            const inv = parseFloat(v(r,'total','Total $')) || 0;
-            const lp  = prices[sym];
-            const cur = lp != null ? qty * lp : null;
-            const pnl = cur != null ? cur - inv : null;
-            const pct = (pnl != null && inv > 0) ? pnl / inv * 100 : null;
-            return `<tr>
-                <td><span class="code-tag">${v(r,'code','Code')}</span></td>
-                <td>${v(r,'date','Date')}</td>
-                <td><strong>${sym}</strong></td>
-                <td>${fmtUSD(inv)}</td>
-                <td>${lp != null ? '<span class="price-badge">$'+fmtNum(lp)+'</span>' : '—'}</td>
-                <td>${cur != null ? fmtUSD(cur) : '—'}</td>
-                <td>${pnlHtml(pnl, pct)}</td>
-                <td style="color:var(--green)">${v(r,'objectif','Objectif')}</td>
-            </tr>`;
-        }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="ei">💤</div><p>Aucune position ouverte</p></div></td></tr>';
-
-        // Historique (endpoint optionnel)
-        try {
-            const hist  = await api(CFG.ep.tradingHistory);
-            const hRows = Array.isArray(hist) ? hist : (hist?.history || []);
-            let realized = 0;
-            hRows.forEach(r => {
-                const inv = parseFloat(v(r,'total_achat','investi')) || 0;
-                const rev = parseFloat(v(r,'total_vente','revenu'))  || 0;
-                realized += rev - inv;
-            });
-            const rEl = document.getElementById('td-realized');
-            const s   = realized >= 0 ? '+' : '';
-            rEl.textContent = s + fmtUSD(realized);
-            rEl.className = 'stat-val ' + (realized > 0 ? 'pnl-pos' : realized < 0 ? 'pnl-neg' : 'pnl-zero');
-
-            const tbHist = document.getElementById('td-tb-hist');
-            tbHist.innerHTML = hRows.length ? hRows.map(r => {
-                const inv  = parseFloat(v(r,'total_achat','investi')) || 0;
-                const rev  = parseFloat(v(r,'total_vente','revenu'))  || 0;
-                const pnl  = rev - inv;
-                const pct  = inv > 0 ? pnl / inv * 100 : null;
-                const sign = pnl >= 0 ? '+' : '';
-                return `<tr>
-                    <td><span class="code-tag">${v(r,'code','Code')}</span></td>
-                    <td><strong>${v(r,'crypto','Crypto')}</strong></td>
-                    <td>${v(r,'date_achat','Date achat')}</td>
-                    <td>${v(r,'date_vente','Date vente')}</td>
-                    <td>${fmtUSD(inv)}</td>
-                    <td>${fmtUSD(rev)}</td>
-                    <td>${pnlHtml(pnl, pct)}</td>
-                    <td class="${pnl > 0 ? 'pnl-pos' : pnl < 0 ? 'pnl-neg' : 'pnl-zero'}">${pct != null ? sign + pct.toFixed(2) + '%' : '—'}</td>
-                </tr>`;
-            }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="ei">📋</div><p>Aucune transaction clôturée</p></div></td></tr>';
-        } catch(_) {
-            document.getElementById('td-realized').textContent = '—';
-            document.getElementById('td-tb-hist').innerHTML =
-                '<tr><td colspan="8"><div class="empty-state"><div class="ei">⚙️</div><p>Configure <code style="color:var(--gold)">/cesar-trading-history</code> dans n8n pour voir l\'historique</p></div></td></tr>';
-        }
-
-        const lu = document.getElementById('last-update-dash');
-        if (lu) lu.textContent = 'Mis à jour ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-        notify('✅ Dashboard actualisé', 'success');
-    } catch(e) { notify('❌ ' + e.message, 'error'); }
-    finally { btn.innerHTML = '🔄 Actualiser'; btn.disabled = false; }
+    } catch(e) {
+        notify('❌ ' + e.message, 'error');
+        cp.classList.remove('show');
+        btn.innerHTML = '🚀 Ouvrir la position';
+        btn.className = 'btn btn-primary';
+    } finally { btn.disabled = false; }
 }
 
 // ══════════════════════════════════════════
@@ -1323,29 +2655,22 @@ function calcDCA(pfx) {
     const qEl = document.getElementById(pfx+'-qty');
     const aEl = document.getElementById(pfx+'-amount');
     const pEl = document.getElementById(pfx+'-price');
-
-    // Vide les champs auto-calculés (l'utilisateur a changé une saisie manuelle)
     [qEl, aEl, pEl].forEach(el => {
         if (el.classList.contains('calculated')) { el.value = ''; el.classList.remove('calculated'); }
     });
-
     const q = parseFloat(qEl.value) || null;
     const a = parseFloat(aEl.value) || null;
     const p = parseFloat(pEl.value) || null;
-
-    // Reset tags
     [['qty',qEl],['amount',aEl],['price',pEl]].forEach(([key, el]) => {
         const tag = document.getElementById(pfx+'-'+key+'-tag');
         if (tag) { tag.textContent = ''; tag.classList.remove('show'); }
     });
-
     function setCalc(key, el, val, decimals) {
         el.value = val.toFixed(decimals);
         el.classList.add('calculated');
         const tag = document.getElementById(pfx+'-'+key+'-tag');
         if (tag) { tag.textContent = 'calculé'; tag.classList.add('show'); }
     }
-
     if (q && a && !p)       setCalc('price',  pEl, a / q, 2);
     else if (q && p && !a)  setCalc('amount', aEl, q * p, 2);
     else if (a && p && !q)  setCalc('qty',    qEl, a / p, 8);
@@ -1370,14 +2695,15 @@ function handleDCA(type) {
         if (!crypto || !date) { notify('⚠️ Crypto et date sont requis', 'error'); return; }
         const filled = [qty, amount, price].filter(v => !isNaN(v) && v > 0).length;
         if (filled < 2) { notify('⚠️ Remplis au moins 2 champs parmi Quantité / Montant / Prix', 'error'); return; }
-        // Calcule le 3ème si besoin
         calcDCA(pfx);
         const qFinal = parseFloat(document.getElementById(pfx+'-qty').value);
         const aFinal = parseFloat(document.getElementById(pfx+'-amount').value);
         const pFinal = parseFloat(document.getElementById(pfx+'-price').value);
+        const plat = document.getElementById(pfx+'-platform')?.value || '';
         document.getElementById('cd-'+fId).innerHTML = rows({
             'Crypto': crypto, 'Date': fmtDate(date),
-            'Quantité': qFinal, 'Montant': fmtUSD(aFinal), 'Prix unitaire': fmtUSD(pFinal)
+            'Quantité': qFinal, 'Montant': fmtUSD(aFinal), 'Prix unitaire': fmtUSD(pFinal),
+            ...(plat ? {'Plateforme': plat} : {})
         });
         document.getElementById('cp-'+fId).classList.add('show');
         const btn = document.getElementById('bs-'+fId);
@@ -1387,120 +2713,30 @@ function handleDCA(type) {
         const qty2   = parseFloat(document.getElementById(pfx+'-qty').value);
         const amount2= parseFloat(document.getElementById(pfx+'-amount').value);
         const price2 = parseFloat(document.getElementById(pfx+'-price').value);
-        submitDCA(type, pfx, fId, label, crypto, date, qty2, amount2, price2);
+        const plat2  = document.getElementById(pfx+'-platform')?.value || '';
+        submitDCA(type, pfx, fId, label, crypto, date, qty2, amount2, price2, plat2);
     }
 }
 
-async function submitDCA(type, pfx, fId, label, crypto, date, qty, amount, price) {
+async function submitDCA(type, pfx, fId, label, crypto, date, qty, amount, price, plateforme) {
     const btn = document.getElementById('bs-'+fId);
     btn.innerHTML = '<span class="spin"></span> Envoi…'; btn.disabled = true;
-    const dp = date.split('-');
-    const fd = `${dp[2]} ${dp[1]} ${dp[0]}`;
     try {
         const r = await api(CFG.ep.dca, 'POST', {
             type: label,
-            message: `${label} ${crypto} / ${fd} / ${qty} / ${amount} / ${price}`,
-            data: { type: label, crypto, date: fd, quantite: qty, montant: amount, prix: price }
+            message: `${label} ${crypto} / ${date} / ${qty} / ${amount} / ${price}`,
+            data: { type: label, crypto, date, quantite: qty, montant: amount, prix: price, plateforme }
         });
         if (r !== null) { notify(`✅ ${label} DCA enregistré !`, 'success'); resetForm(fId); }
     } catch(e) { notify('❌ ' + e.message, 'error'); btn.disabled = false; btn.innerHTML = '✅ Confirmer et enregistrer'; }
 }
 
 // ══════════════════════════════════════════
-// BUY TRADING
-// ══════════════════════════════════════════
-function calcUnit() {
-    const q = parseFloat(document.getElementById('bt-qty')?.value);
-    const t = parseFloat(document.getElementById('bt-total')?.value);
-    const el = document.getElementById('bt-unit');
-    if (el) el.value = (q > 0 && t > 0) ? fmtUSD(t / q) : '—';
-}
-
-function handleBuyTrading() {
-    const state  = fstate['buy-trading'] || 'fill';
-    const crypto = document.getElementById('bt-crypto').value.trim().toUpperCase();
-    const date   = document.getElementById('bt-date').value;
-    const qty    = parseFloat(document.getElementById('bt-qty').value);
-    const total  = parseFloat(document.getElementById('bt-total').value);
-    const target = parseFloat(document.getElementById('bt-target').value);
-
-    if (state === 'fill') {
-        if (!crypto || !date || isNaN(qty) || isNaN(total) || isNaN(target)) {
-            notify('⚠️ Tous les champs sont requis', 'error'); return;
-        }
-        document.getElementById('cd-buy-trading').innerHTML = rows({
-            'Crypto': crypto, 'Date': fmtDate(date),
-            'Quantité': qty, 'Prix total': fmtUSD(total),
-            'Prix unitaire': fmtUSD(total / qty), 'Objectif': '+' + target + '%'
-        });
-        document.getElementById('cp-buy-trading').classList.add('show');
-        const btn = document.getElementById('bs-buy-trading');
-        btn.innerHTML = '✅ Confirmer et ouvrir'; btn.className = 'btn btn-success';
-        fstate['buy-trading'] = 'confirm';
-    } else {
-        submitBuyTrading(crypto, date, qty, total, target);
-    }
-}
-
-async function submitBuyTrading(crypto, date, qty, total, target) {
-    const btn = document.getElementById('bs-buy-trading');
-    btn.innerHTML = '<span class="spin"></span> Envoi…'; btn.disabled = true;
-    const dp = date.split('-');
-    const fd = `${dp[2]} ${dp[1]} ${dp[0]}`;
-    try {
-        const r = await api(CFG.ep.tradingBuy, 'POST', {
-            message: `${crypto} / ${fd} / ${qty} / ${total} / ${target}`,
-            data: { crypto, date: fd, quantite: qty, prixTotal: total, objectif: target }
-        });
-        if (r !== null) { notify('✅ Position trading ouverte !', 'success'); resetForm('buy-trading'); }
-    } catch(e) { notify('❌ ' + e.message, 'error'); btn.disabled = false; btn.innerHTML = '✅ Confirmer et ouvrir'; }
-}
-
-// ══════════════════════════════════════════
-// SELL TRADING
-// ══════════════════════════════════════════
-function handleSellTrading() {
-    const state = fstate['sell-trading'] || 'fill';
-    const code  = document.getElementById('st-code').value.trim();
-    const date  = document.getElementById('st-date').value;
-    const price = parseFloat(document.getElementById('st-price').value);
-
-    if (state === 'fill') {
-        if (!code || !date || isNaN(price)) { notify('⚠️ Tous les champs sont requis', 'error'); return; }
-        document.getElementById('cd-sell-trading').innerHTML = rows({
-            'Code position': code, 'Date de vente': fmtDate(date), 'Prix de vente': fmtUSD(price)
-        });
-        document.getElementById('cp-sell-trading').classList.add('show');
-        const btn = document.getElementById('bs-sell-trading');
-        btn.innerHTML = '✅ Confirmer la clôture'; btn.className = 'btn btn-danger';
-        fstate['sell-trading'] = 'confirm';
-    } else {
-        submitSellTrading(code, date, price);
-    }
-}
-
-async function submitSellTrading(code, date, price) {
-    const btn = document.getElementById('bs-sell-trading');
-    btn.innerHTML = '<span class="spin"></span> Envoi…'; btn.disabled = true;
-    const dp = date.split('-');
-    const fd = `${dp[2]} ${dp[1]} ${dp[0]}`;
-    try {
-        const r = await api(CFG.ep.tradingSell, 'POST', {
-            message: `${code} / ${fd} / ${price}`,
-            data: { code, dateVente: fd, prixVente: price }
-        });
-        if (r !== null) { notify('✅ Position clôturée !', 'success'); resetForm('sell-trading'); }
-    } catch(e) { notify('❌ ' + e.message, 'error'); btn.disabled = false; btn.innerHTML = '✅ Confirmer la clôture'; }
-}
-
-// ══════════════════════════════════════════
 // RESET
 // ══════════════════════════════════════════
 const FORMS = {
-    'buy-dca':     { btn:'bs-buy-dca',      txt:'💰 Enregistrer l\'achat',  cls:'btn-primary', fields:['bd-crypto','bd-qty','bd-amount','bd-price'], calcPfx:'bd' },
-    'sell-dca':    { btn:'bs-sell-dca',     txt:'📉 Enregistrer la vente',  cls:'btn-primary', fields:['sd-crypto','sd-qty','sd-amount','sd-price'], calcPfx:'sd' },
-    'buy-trading': { btn:'bs-buy-trading',  txt:'🚀 Ouvrir la position',    cls:'btn-primary', fields:['bt-crypto','bt-qty','bt-total','bt-target','bt-unit'] },
-    'sell-trading':{ btn:'bs-sell-trading', txt:'🔴 Clôturer la position',  cls:'btn-primary', fields:['st-code','st-price'] },
+    'buy-dca':  { btn:'bs-buy-dca',  txt:"💰 Enregistrer l'achat", cls:'btn-primary', fields:['bd-crypto','bd-qty','bd-amount','bd-price'], selects:['bd-platform'], calcPfx:'bd' },
+    'sell-dca': { btn:'bs-sell-dca', txt:'📉 Enregistrer la vente', cls:'btn-primary', fields:['sd-crypto','sd-qty','sd-amount','sd-price'], selects:['sd-platform'], calcPfx:'sd' },
 };
 
 function resetForm(fId) {
@@ -1511,15 +2747,19 @@ function resetForm(fId) {
         const btn = document.getElementById(cfg.btn);
         btn.innerHTML = cfg.txt; btn.className = 'btn ' + cfg.cls; btn.disabled = false;
         cfg.fields.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) { el.value = ''; el.classList.remove('calculated'); }
-    });
-    if (cfg.calcPfx) {
-        ['qty','amount','price'].forEach(key => {
-            const tag = document.getElementById(cfg.calcPfx+'-'+key+'-tag');
-            if (tag) { tag.textContent = ''; tag.classList.remove('show'); }
+            const el = document.getElementById(id);
+            if (el) { el.value = ''; el.classList.remove('calculated'); }
         });
-    }
+        (cfg.selects || []).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.selectedIndex = 0;
+        });
+        if (cfg.calcPfx) {
+            ['qty','amount','price'].forEach(key => {
+                const tag = document.getElementById(cfg.calcPfx+'-'+key+'-tag');
+                if (tag) { tag.textContent = ''; tag.classList.remove('show'); }
+            });
+        }
     }
 }
 
@@ -1534,25 +2774,98 @@ function rows(data) {
     ).join('');
 }
 
+function fmtQty(n) {
+    const num = parseFloat(n);
+    if (isNaN(num)) return '—';
+    // Max 8 décimales, supprime les zéros trailing
+    return num.toFixed(8).replace(/\.?0+$/, '') || '0';
+}
+
 function fmtUSD(n) {
     const num = parseFloat(n);
     if (isNaN(num)) return '—';
-    return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' $';
+    return num.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '$';
 }
 
 function fmtNum(n) {
     const num = parseFloat(n);
     if (isNaN(num)) return '—';
-    if (num >= 1000) return num.toLocaleString('en-US', { maximumFractionDigits: 2 });
-    if (num >= 1)    return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-    return num.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 8 });
+    if (num >= 1000) return num.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+    if (num >= 1)    return num.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    return num.toLocaleString('fr-FR', { minimumFractionDigits: 4, maximumFractionDigits: 8 });
+}
+
+function pnlAmtHtml(pnl, pnlPct, objPct) {
+    if (pnl == null) return '<span style="color:var(--text-secondary)">—</span>';
+    let color;
+    if (pnlPct < 0)             color = 'var(--red)';
+    else if (pnlPct < objPct/2) color = 'var(--text-secondary)';
+    else if (pnlPct < objPct)   color = '#3498DB';
+    else                        color = 'var(--green)';
+    const sign = pnl >= 0 ? '+' : '';
+    return `<span style="color:${color};font-weight:600">${sign}${fmtUSD(pnl)}</span>`;
+}
+
+function roiHtml(pnlPct, objPct) {
+    if (pnlPct == null) return '<span style="color:var(--text-secondary)">—</span>';
+    let color;
+    if (pnlPct < 0)             color = 'var(--red)';
+    else if (pnlPct < objPct/2) color = 'var(--text-secondary)';
+    else if (pnlPct < objPct)   color = '#3498DB';
+    else                        color = 'var(--green)';
+    const sign = pnlPct >= 0 ? '+' : '';
+    return `<span style="color:${color};font-weight:600">${sign}${pnlPct.toFixed(2)}%</span>`;
+}
+
+function pnlTradingHtml(pnl, pnlPct, objPct) {
+    if (pnl == null) return '<span style="color:var(--text-secondary)">—</span>';
+    let color;
+    if (pnlPct < 0)              color = 'var(--red)';
+    else if (pnlPct < objPct/2)  color = 'var(--text-secondary)';
+    else if (pnlPct < objPct)    color = '#3498DB';
+    else                         color = 'var(--green)';
+    const sign = pnl >= 0 ? '+' : '';
+    return `<span style="color:${color};font-weight:600">${sign}${fmtUSD(pnl)}<br><small>${sign}${pnlPct != null ? pnlPct.toFixed(2) : '0.00'}%</small></span>`;
+}
+
+function cloturerBtn(lp, prix, objPct, code) {
+    let border = 'rgba(139,148,158,.35)', color = 'var(--text-secondary)';
+    if (prix > 0 && objPct > 0 && lp != null) {
+        const gainPct = (lp - prix) / prix * 100;
+        if (gainPct < 0)             { border = 'var(--red)';   color = 'var(--red)'; }
+        else if (gainPct < objPct/2) { border = 'rgba(139,148,158,.45)'; color = 'var(--text-secondary)'; }
+        else if (gainPct < objPct)   { border = '#3498DB';      color = '#3498DB'; }
+        else                         { border = 'var(--green)'; color = 'var(--green)'; }
+    }
+    return `<button class="btn btn-sm" style="background:transparent;border:1px solid ${border};color:${color}" onclick="toggleSellRow('${code}')">Clôturer</button>`;
+}
+
+function prixActuelBadge(lp, prix, objPct) {
+    if (lp == null) return '—';
+    let color = 'var(--text-secondary)';
+    if (prix > 0 && objPct > 0) {
+        const gainPct = (lp - prix) / prix * 100;
+        if (gainPct < 0)             color = 'var(--red)';
+        else if (gainPct < objPct/2) color = 'var(--text-secondary)';
+        else if (gainPct < objPct)   color = '#3498DB';
+        else                         color = 'var(--green)';
+    }
+    return `<span style="font-size:11px;background:var(--bg-tertiary);padding:2px 7px;border-radius:5px;font-variant-numeric:tabular-nums;white-space:nowrap;color:${color};font-weight:600">$${fmtNum(lp)}</span>`;
+}
+
+function platBadge(plat) {
+    if (!plat) return '';
+    const cfg = { 'Binance': ['#F0B90B','rgba(240,185,11,.12)'], 'SwissBorg': ['#00DC82','rgba(0,220,130,.12)'] };
+    const [color, bg] = cfg[plat] || ['var(--text-secondary)','var(--bg-tertiary)'];
+    return `<span style="display:inline-block;font-size:9px;padding:1px 5px;border-radius:4px;background:${bg};color:${color};font-weight:700;letter-spacing:.3px;white-space:nowrap;margin-top:2px">${plat}</span>`;
 }
 
 function pnlHtml(pnl, pnlPct) {
     if (pnl == null) return '<span class="pnl-zero">—</span>';
     const cls  = pnl > 0 ? 'pnl-pos' : pnl < 0 ? 'pnl-neg' : 'pnl-zero';
     const sign = pnl >= 0 ? '+' : '';
-    return `<span class="${cls}">${sign}${fmtUSD(pnl)}<br><small>${sign}${pnlPct.toFixed(2)}%</small></span>`;
+    const pctStr = pnlPct != null ? `<br><small>${sign}${pnlPct.toFixed(2)}%</small>` : '';
+    return `<span class="${cls}">${sign}${fmtUSD(pnl)}${pctStr}</span>`;
 }
 
 function fmtDate(iso) {
@@ -1569,9 +2882,930 @@ function notify(msg, type = 'info') {
     notifTimer = setTimeout(() => el.classList.remove('show'), 4000);
 }
 
+// ══════════════════════════════════════════
+// IMPORT TRADING
+// ══════════════════════════════════════════
+const IMPORT_ROWS = [
+    // [crypto, dateAchat, qty, achat€, obj%, dateVente, vente€]
+    ['FLUX',  '2024-09-19', 53,            29.71,  0, '2024-09-23', 32.49],
+    ['FLUX',  '2024-09-19', 36.062,        20.22,  0, '2024-09-24', 20.09],
+    ['FLUX',  '2024-09-19', 45.31931767,   25.40,  0, '',           ''],
+    ['FLUX',  '2024-09-19', 44,            24.67,  0, '2024-10-10', 20.10],
+    ['CKB',   '2024-09-23', 2083.416225,   32.49,  0, '',           ''],
+    ['USDC',  '2024-09-24', 22.20,         20.09,  0, '2024-09-27', 20.09],
+    ['NEAR',  '2024-09-27', 7.59659364,    38.69,  0, '',           ''],
+    ['USDC',  '2024-10-10', 22.21287877,   20.10,  0, '2024-10-11', 20.10],
+    ['FET',   '2024-10-11', 9.58372871,    11.67,  0, '2024-10-15', 15.27],
+    ['USDC',  '2024-10-15', 13.9936,       15.27,  0, '2024-10-15', 15.27],
+    ['JASMY', '2024-10-11', 633.2714683,   10.81,  0, '',           ''],
+    ['TAO',   '2024-10-15', 0.02306756,    12.90,  0, '',           ''],
+    ['FET',   '2024-11-13', 31.77799805,   40.00,  0, '',           ''],
+    ['FET',   '2025-01-30', 40.23008091,   40.00,  0, '',           ''],
+    ['ETH',   '2025-03-02', 0.0195,        48.00,  0, '',           ''],
+    ['ETH',   '2025-03-05', 0.02369608,    50.00,  0, '',           ''],
+];
+let _importIdSeq = 0;
+
+function importRenderAll() {
+    _importIdSeq = 0;
+    const tbody = document.getElementById('import-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    document.getElementById('import-progress').textContent = '';
+    IMPORT_ROWS.forEach(row => _importAppendRow(row));
+}
+
+function _importAppendRow(data) {
+    const id = _importIdSeq++;
+    const [crypto, dateAchat, qty, achat, obj, dateVente, vente] = data || ['','','','',0,'',''];
+    const tbody = document.getElementById('import-tbody');
+    const tr = document.createElement('tr');
+    tr.id = 'ir-' + id;
+    tr.innerHTML = `
+        <td><input class="itbl" id="ir-c-${id}"  value="${crypto}" oninput="this.value=this.value.toUpperCase()" style="width:64px"></td>
+        <td><input class="itbl" type="date" id="ir-da-${id}" value="${dateAchat}" style="width:106px"></td>
+        <td><input class="itbl" type="number" id="ir-q-${id}"  value="${qty}"   step="any" style="width:110px"></td>
+        <td><input class="itbl" type="number" id="ir-a-${id}"  value="${achat}" step="any" style="width:78px"></td>
+        <td><input class="itbl" type="number" id="ir-o-${id}"  value="${obj||0}" step="any" style="width:48px"></td>
+        <td><input class="itbl" type="date" id="ir-dv-${id}" value="${dateVente}" style="width:106px"></td>
+        <td><input class="itbl" type="number" id="ir-v-${id}"  value="${vente}" step="any" style="width:78px"></td>
+        <td style="text-align:center;font-size:14px" id="ir-st-${id}">⏳</td>
+        <td><button style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:14px;padding:2px 4px" onclick="document.getElementById('ir-${id}')?.remove()" title="Supprimer">✕</button></td>`;
+    tbody.appendChild(tr);
+}
+
+function importAddRow() {
+    _importAppendRow(['','','','',0,'','']);
+}
+
+const EUR_USD = 1.11;
+
+async function importAll() {
+    const btn  = document.getElementById('btn-import-all');
+    const rows = document.querySelectorAll('#import-tbody tr');
+    if (!rows.length) { notify('⚠️ Aucune ligne à importer', 'info'); return; }
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin"></span> Import…';
+    const today = new Date().toISOString().slice(0,10);
+    let ok = 0, err = 0, total = rows.length;
+
+    for (const tr of rows) {
+        const id = tr.id.replace('ir-', '');
+        const stEl = document.getElementById('ir-st-' + id);
+        if (stEl) stEl.textContent = '🔄';
+        try {
+            const crypto    = document.getElementById('ir-c-'  + id)?.value?.trim().toUpperCase();
+            const dateAchat = document.getElementById('ir-da-' + id)?.value || today;
+            const qty       = parseFloat(document.getElementById('ir-q-'  + id)?.value);
+            const achatEur  = parseFloat(document.getElementById('ir-a-'  + id)?.value);
+            const obj       = parseFloat(document.getElementById('ir-o-'  + id)?.value) || 0;
+            const dateVente = document.getElementById('ir-dv-' + id)?.value;
+            const venteEur  = parseFloat(document.getElementById('ir-v-'  + id)?.value);
+
+            if (!crypto || isNaN(qty) || qty <= 0 || isNaN(achatEur) || achatEur <= 0)
+                throw new Error('Crypto / Quantité / Achat requis');
+
+            const achatUsd = parseFloat((achatEur * EUR_USD).toFixed(2));
+
+            await new Promise(res => setTimeout(res, 300));
+            // Génère le code côté frontend — envoyé à n8n qui l'utilise directement
+            const code = `T-${new Date().getFullYear()}-${String(Math.floor(Math.random()*9000)+1000)}`;
+            await api(CFG.ep.tradingBuy, 'POST', {
+                message: `${crypto} / ${dateAchat} / ${qty} / ${achatUsd} / ${obj}`,
+                data: { crypto, date: dateAchat, quantite: qty, prixTotal: achatUsd, objectif: obj, code }
+            });
+
+            if (dateVente && !isNaN(venteEur) && venteEur > 0) {
+                const venteUsd = parseFloat((venteEur * EUR_USD).toFixed(2));
+                await api(CFG.ep.tradingSell, 'POST', {
+                    message: `${code} / ${dateVente} / ${venteUsd} / ${qty}`,
+                    data: { code, dateVente, prixVente: venteUsd, quantite: qty }
+                });
+            }
+            if (stEl) stEl.textContent = '✅';
+            tr.classList.add('ir-success');
+            ok++;
+        } catch(e) {
+            if (stEl) { stEl.textContent = '❌'; stEl.title = e.message; }
+            tr.classList.add('ir-error');
+            console.error('Import row', id, e.message);
+            err++;
+        }
+        document.getElementById('import-progress').textContent = `${ok + err} / ${total}`;
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '🚀 Importer tout';
+    notify(`✅ ${ok} importé${ok > 1 ? 's' : ''}${err ? ` — ❌ ${err} erreur${err > 1 ? 's' : ''}` : ''}`, err ? 'error' : 'success');
+}
+
+// ══════════════════════════════════════════
+// IMPORT DCA
+// ══════════════════════════════════════════
+const IMPORT_DCA_ROWS = [
+    // [type, date, crypto, montant€, qty, prix€, plateforme]
+    ['Achat','2021-01-04','ETH',11.63,0.0119,951.74,'Revolut'],
+    ['Achat','2021-01-04','ETH',16.81,0.02,967.88,'Revolut'],
+    ['Achat','2021-01-04','ETH',37.01,0.04,967.88,'Revolut'],
+    ['Achat','2021-01-04','ETH',3.91,0.00404,967.88,'Revolut'],
+    ['Achat','2021-01-22','BTC',23.26,0.000769,30241.86,'Revolut'],
+    ['Achat','2021-02-20','BTC',58.14,0.001055,55134.88,'Revolut'],
+    ['Achat','2021-03-07','ETH',34.88,0.02,1629.53,'Revolut'],
+    ['Achat','2021-11-06','CHZ',58.14,117.38,0.48,'Revolut'],
+    ['Achat','2021-11-06','ENJ',58.14,16.65,0.48,'Revolut'],
+    ['Achat','2021-11-14','BTC',52.30,0.000778,67192.62,'Revolut'],
+    ['Achat','2021-11-14','BTC',34.91,0.000519,67192.62,'Revolut'],
+    ['Achat','2021-11-20','BTC',46.51,0.000772,60279.07,'Revolut'],
+    ['Achat','2021-12-07','CHZ',58.14,162.40,0.35,'Revolut'],
+    ['Achat','2022-01-12','ETH',166.67,0.05,3319.60,'SwissBorg'],
+    ['Achat','2022-01-12','BNB',55.56,0.12,445.00,'SwissBorg'],
+    ['Achat','2022-01-12','CHZ',55.56,245.84,0.22,'SwissBorg'],
+    ['Achat','2022-01-12','ENJ',55.56,20.80,2.63,'SwissBorg'],
+    ['Achat','2022-01-12','POL',111.11,52.16,2.10,'SwissBorg'],
+    ['Achat','2022-01-12','BORG',52.18,111.35,0.47,'SwissBorg'],
+    ['Achat','2022-01-12','MANA',111.11,31.64,3.47,'SwissBorg'],
+    ['Achat','2022-01-12','SAND',111.11,23.62,4.66,'SwissBorg'],
+    ['Achat','2023-09-24','SOL',21.74,0.13,168.46,'Revolut'],
+    ['Achat','2024-03-04','ETH',54.35,0.01,3579.57,'Revolut'],
+    ['Achat','2024-05-13','SOL',21.74,0.14,155.98,'Revolut'],
+    ['Achat','2024-08-06','SOL',21.74,0.15,141.99,'Binance'],
+    ['Achat','2024-08-06','JASMY',21.74,1005.23,0.02,'Binance'],
+    ['Achat','2024-08-06','ANKR',21.74,884.01,0.02,'Binance'],
+    ['Achat','2024-08-06','FET',12.41,14.00,0.89,'Binance'],
+    ['Achat','2024-08-06','FET',9.33,10.53,0.89,'Binance'],
+    ['Achat','2024-08-06','BTC',21.74,0.000355,61274.30,'Binance'],
+    ['Achat','2024-08-06','RWA',54.35,1.00,54.35,'SwissBorg'],
+    ['Achat','2024-08-24','GAM',54.35,1.00,54.35,'SwissBorg'],
+    ['Achat','2024-09-05','ETH',21.74,0.01,2353.46,'Binance'],
+    ['Achat','2024-09-05','FET',21.74,19.66,1.11,'Binance'],
+    ['Achat','2024-09-05','ETH',21.74,0.01,2353.46,'SwissBorg'],
+    ['Achat','2024-09-05','SOL',21.74,0.16,132.07,'SwissBorg'],
+    ['Achat','2024-09-23','USDC',22.91,23.30,1.07,'Binance'],
+    ['Achat','2024-10-01','BNB',32.61,0.06,627.53,'SwissBorg'],
+    ['Achat','2024-10-01','ETH',32.61,0.01,2852.31,'SwissBorg'],
+    ['Achat','2024-10-04','FET',21.74,15.70,1.51,'Binance'],
+    ['Achat','2024-10-04','JASMY',21.74,1106.93,0.02,'Binance'],
+    ['Achat','2024-10-04','ANKR',16.30,623.72,0.03,'Binance'],
+    ['Achat','2024-10-04','NEAR',21.74,4.61,5.12,'Binance'],
+    ['Achat','2024-10-04','CKB',21.74,1458.49,0.02,'Binance'],
+    ['Achat','2024-10-04','FLUX',21.74,39.79,0.59,'Binance'],
+    ['Achat','2024-11-05','FET',43.48,34.83,1.36,'Binance'],
+    ['Achat','2024-11-05','JASMY',21.74,1242.88,0.02,'Binance'],
+    ['Achat','2024-11-05','NEAR',21.74,5.58,4.24,'Binance'],
+    ['Achat','2024-11-05','SOL',21.74,0.13,181.03,'Binance'],
+    ['Achat','2024-12-03','FET',32.61,16.74,2.12,'Binance'],
+    ['Achat','2024-12-03','CKB',32.61,1786.10,0.02,'Binance'],
+    ['Achat','2024-12-03','SOL',21.74,0.09,254.44,'Binance'],
+    ['Achat','2024-12-03','TAO',21.74,0.03,690.21,'Binance'],
+    ['Vente','2021-01-04','ETH',10.94,0.01,942.36,'Revolut'],
+    ['Vente','2021-02-02','ETH',23.26,0.02,1372.09,'Revolut'],
+    ['Vente','2021-12-03','ETH',169.12,0.04,4535.47,'Revolut'],
+    ['Vente','2021-12-29','ETH',15.08,0.00403,3740.87,'Revolut'],
+    ['Vente','2021-12-29','ETH',78.08,0.02,3740.87,'Revolut'],
+    ['Vente','2021-12-29','BTC',35.19,0.000731,48150.00,'Revolut'],
+    ['Vente','2024-03-01','BTC',61.86,0.001028,60169.52,'Revolut'],
+    ['Vente','2024-03-01','BTC',46.84,0.000778,60169.52,'Revolut'],
+    ['Vente','2024-05-21','CHZ',13.84,117.38,0.12,'Revolut'],
+    ['Vente','2024-05-21','CHZ',19.14,162.40,0.12,'Revolut'],
+    ['Vente','2024-06-04','ENJ',3.24,16.65,0.29,'Revolut'],
+    ['Vente','2024-09-23','FET',22.91,14.00,1.64,'Binance'],
+    ['Vente','2024-11-06','BTC',37.29,0.000520,71769.83,'Revolut'],
+    ['Vente','2024-11-06','BTC',53.99,0.000752,71769.83,'Revolut'],
+    ['Vente','2024-11-20','ETH',44.73,0.01,3300.61,'Revolut'],
+    ['Vente','2024-11-20','SOL',32.26,0.14,251.60,'Revolut'],
+    ['Vente','2024-11-20','SOL',29.88,0.13,251.67,'Revolut'],
+];
+let _importDcaIdSeq = 0;
+
+function importDcaRenderAll() {
+    _importDcaIdSeq = 0;
+    const tbody = document.getElementById('import-dca-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    document.getElementById('import-dca-progress').textContent = '';
+    IMPORT_DCA_ROWS.forEach(row => _importDcaAppendRow(row));
+}
+
+function _importDcaAppendRow(data) {
+    const id = _importDcaIdSeq++;
+    const [type, date, crypto, montant, qty, prix, plat] = data || ['Achat','','','','','',''];
+    const tbody = document.getElementById('import-dca-tbody');
+    const tr = document.createElement('tr');
+    tr.id = 'idr-' + id;
+    const typeColor = type === 'Achat' ? 'var(--green)' : 'var(--red)';
+    tr.innerHTML = `
+        <td><select class="itbl" id="idr-t-${id}" style="width:72px;color:${typeColor}">
+            <option value="Achat" ${type==='Achat'?'selected':''}>Achat</option>
+            <option value="Vente" ${type==='Vente'?'selected':''}>Vente</option>
+        </select></td>
+        <td><input class="itbl" type="date" id="idr-da-${id}" value="${date}" style="width:106px"></td>
+        <td><input class="itbl" id="idr-c-${id}" value="${crypto}" oninput="this.value=this.value.toUpperCase()" style="width:64px"></td>
+        <td><input class="itbl" type="number" id="idr-q-${id}"  value="${qty}"    step="any" style="width:106px"></td>
+        <td><input class="itbl" type="number" id="idr-m-${id}"  value="${montant}" step="any" style="width:78px"></td>
+        <td><input class="itbl" type="number" id="idr-p-${id}"  value="${prix}"   step="any" style="width:78px"></td>
+        <td><select class="itbl" id="idr-pl-${id}" style="width:96px">
+            <option value="">—</option>
+            <option value="Revolut"  ${plat==='Revolut'?'selected':''}>Revolut</option>
+            <option value="Binance"  ${plat==='Binance'?'selected':''}>Binance</option>
+            <option value="SwissBorg"${plat==='SwissBorg'?'selected':''}>SwissBorg</option>
+        </select></td>
+        <td style="text-align:center;font-size:14px" id="idr-st-${id}">⏳</td>
+        <td><button style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:14px;padding:2px 4px" onclick="document.getElementById('idr-${id}')?.remove()" title="Supprimer">✕</button></td>`;
+    tbody.appendChild(tr);
+}
+
+function importDcaAddRow() { _importDcaAppendRow(['Achat','','','','','','']); }
+
+async function importAllDCA() {
+    const btn  = document.getElementById('btn-import-dca-all');
+    const rows = document.querySelectorAll('#import-dca-tbody tr');
+    if (!rows.length) { notify('⚠️ Aucune ligne à importer', 'info'); return; }
+    btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Import…';
+    const today = new Date().toISOString().slice(0,10);
+    let ok = 0, err = 0, total = rows.length;
+
+    for (const tr of rows) {
+        // Saute les lignes déjà importées avec succès
+        if (tr.classList.contains('ir-success')) { ok++; continue; }
+
+        const id   = tr.id.replace('idr-', '');
+        const stEl = document.getElementById('idr-st-' + id);
+        if (stEl) stEl.textContent = '🔄';
+        try {
+            const type      = document.getElementById('idr-t-'  + id)?.value || 'Achat';
+            const date      = document.getElementById('idr-da-' + id)?.value || today;
+            const crypto    = document.getElementById('idr-c-'  + id)?.value?.trim().toUpperCase();
+            const qty       = parseFloat(document.getElementById('idr-q-'  + id)?.value);
+            const montant   = parseFloat(document.getElementById('idr-m-'  + id)?.value);
+            const prix      = parseFloat(document.getElementById('idr-p-'  + id)?.value);
+            const plateforme= document.getElementById('idr-pl-' + id)?.value || '';
+
+            if (!crypto || isNaN(qty) || qty <= 0 || isNaN(montant) || montant <= 0)
+                throw new Error('Crypto / Quantité / Montant requis');
+
+            await new Promise(res => setTimeout(res, 600));
+            await api(CFG.ep.dca, 'POST', {
+                type,
+                message: `${type} ${crypto} / ${date} / ${qty} / ${montant} / ${prix}`,
+                data: { type, crypto, date, quantite: qty, montant, prix, plateforme }
+            });
+            if (stEl) stEl.textContent = '✅';
+            tr.classList.remove('ir-error');
+            tr.classList.add('ir-success');
+            ok++;
+        } catch(e) {
+            if (stEl) { stEl.textContent = '❌'; stEl.title = e.message; }
+            tr.classList.add('ir-error');
+            console.error('Import DCA row', id, e.message);
+            err++;
+        }
+        document.getElementById('import-dca-progress').textContent = `${ok + err} / ${total}`;
+    }
+    btn.disabled = false;
+    btn.innerHTML = err ? '🔄 Relancer les erreurs' : '🚀 Importer tout';
+    notify(`✅ ${ok} importé${ok>1?'s':''}${err?` — ❌ ${err} erreur${err>1?'s':''} — Clique à nouveau pour relancer`:''} `, err?'error':'success');
+}
+
+// ══════════════════════════════════════════
+// OBJECTIFS D'ALLOCATION
+// ══════════════════════════════════════════
+const OBJECTIF_TARGETS = { btc: 45, eth: 25, top10: 15, top50: 10, others: 5 };
+const OBJ_COLORS = {
+    btc:    '#F7931A',
+    eth:    '#627EEA',
+    top10:  '#27AE60',
+    top50:  '#3498DB',
+    others: '#8b949e',
+};
+const OBJ_LABELS = {
+    btc:    'Bitcoin (BTC)',
+    eth:    'Ethereum (ETH)',
+    top10:  'Top 10 (rang 3–10)',
+    top50:  'Top 50 (rang 11–50)',
+    others: 'Autres (> 50)',
+};
+
+let _cgRankMap   = {};
+let _cgRankTs    = 0;
+
+async function _fetchCgRanks() {
+    if (Object.keys(_cgRankMap).length && Date.now() - _cgRankTs < 5 * 60 * 1000) return _cgRankMap;
+    try {
+        const res = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false');
+        if (!res.ok) throw new Error('CoinGecko ' + res.status);
+        const data = await res.json();
+        _cgRankMap = {};
+        data.forEach(c => { _cgRankMap[c.symbol.toUpperCase()] = c.market_cap_rank; });
+        _cgRankTs = Date.now();
+    } catch(e) { console.warn('CoinGecko rank fetch:', e.message); }
+    return _cgRankMap;
+}
+
+function _classifyCrypto(sym, rankMap) {
+    if (sym === 'BTC') return 'btc';
+    if (sym === 'ETH') return 'eth';
+    const rank = rankMap[sym];
+    if (!rank) return 'others';
+    if (rank <= 10) return 'top10';
+    if (rank <= 50) return 'top50';
+    return 'others';
+}
+
+// ── Note stratégique (localStorage) ──
+const OBJ_NOTE_KEY = 'cesar_objectifs_note';
+
+function saveObjNote(val) {
+    localStorage.setItem(OBJ_NOTE_KEY, val);
+    const el = document.getElementById('obj-note-saved');
+    if (!el) return;
+    el.style.opacity = '1';
+    clearTimeout(el._t);
+    el._t = setTimeout(() => { el.style.opacity = '0'; }, 1800);
+}
+
+function _loadObjNote() {
+    const ta = document.getElementById('obj-note');
+    if (!ta) return;
+    ta.value = localStorage.getItem(OBJ_NOTE_KEY) || '';
+}
+
+async function loadObjectifs() {
+    _loadObjNote();
+    const btn = document.getElementById('btn-robj');
+    if (btn) { btn.innerHTML = '<span class="spin"></span>'; btn.disabled = true; }
+    try {
+        // Utilise les données DCA déjà en mémoire (Portfolio ou DCA Dashboard)
+        let dcaRaw = _pfData.dcaRaw.length ? _pfData.dcaRaw : _ddData.rawTxns;
+        let prices  = _pfData.dcaRaw.length ? _pfData.prices : _ddData.prices;
+
+        if (!dcaRaw.length) {
+            document.getElementById('obj-empty').style.display = '';
+            document.getElementById('obj-body').style.display  = 'none';
+            return;
+        }
+
+        const rankMap = await _fetchCgRanks();
+        const dca     = _aggregateDca(dcaRaw);
+
+        // Calcul valeur par catégorie
+        const cats   = { btc: 0, eth: 0, top10: 0, top50: 0, others: 0 };
+        const catMap = {};
+        let totalVal = 0;
+
+        dca.forEach(r => {
+            const sym = r.crypto;
+            const qty = r.quantite;
+            const inv = r.total;
+            const lp  = prices[sym];
+            const val = lp != null ? qty * lp : inv;
+            const cat = _classifyCrypto(sym, rankMap);
+            cats[cat]  += val;
+            catMap[sym] = { cat, val, qty, inv, lp, rank: rankMap[sym] || null };
+            totalVal   += val;
+        });
+
+        // Pourcentages réels
+        const actPct = {};
+        Object.keys(cats).forEach(k => actPct[k] = totalVal > 0 ? cats[k] / totalVal * 100 : 0);
+
+        // Score de conformité : moy(1 - |écart| / cible) par catégorie, clampé à 0
+        let score = 0;
+        Object.keys(OBJECTIF_TARGETS).forEach(k => {
+            const tgt = OBJECTIF_TARGETS[k];
+            const err = Math.abs((actPct[k] || 0) - tgt);
+            score += Math.max(0, 1 - err / tgt);
+        });
+        score = Math.round(score / Object.keys(OBJECTIF_TARGETS).length * 100);
+
+        // Mise à jour stats
+        document.getElementById('obj-total').textContent = fmtUSD(totalVal);
+        document.getElementById('obj-nb').textContent    = dca.length;
+        const scEl = document.getElementById('obj-score');
+        scEl.textContent = score + '%';
+        scEl.className   = 'stat-val ' + (score >= 80 ? 'pnl-pos' : score >= 50 ? 'gold' : 'pnl-neg');
+
+        // Graphique & tableau
+        _renderObjectifsChart(actPct);
+        _renderObjectifsTable(actPct, catMap, totalVal);
+
+        document.getElementById('obj-empty').style.display = 'none';
+        document.getElementById('obj-body').style.display  = '';
+        notify('✅ Objectifs mis à jour', 'success');
+    } catch(e) { notify('❌ ' + e.message, 'error'); }
+    finally { if (btn) { btn.innerHTML = '🔄 Actualiser'; btn.disabled = false; } }
+}
+
+function _renderObjectifsChart(actPct) {
+    destroyChart('chart-obj');
+    const wrap = document.getElementById('obj-chart-wrap');
+    if (!wrap) return;
+    wrap.innerHTML = '<canvas id="chart-obj"></canvas>';
+    const ctx  = document.getElementById('chart-obj').getContext('2d');
+    const keys = ['btc', 'eth', 'top10', 'top50', 'others'];
+
+    // Couleurs : anneau extérieur = cible (30% opacité), intérieur = réel (plein)
+    const solidC = keys.map(k => OBJ_COLORS[k]);
+    const fadedC = keys.map(k => OBJ_COLORS[k] + '4D'); // ~30% opacité
+
+    charts['chart-obj'] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: keys.map(k => OBJ_LABELS[k]),
+            datasets: [
+                {
+                    label: 'Objectif',
+                    data:  keys.map(k => OBJECTIF_TARGETS[k]),
+                    backgroundColor: fadedC,
+                    borderColor: '#161b22',
+                    borderWidth: 3,
+                    weight: 1,
+                    hoverOffset: 4,
+                },
+                {
+                    label: 'Actuel',
+                    data:  keys.map(k => actPct[k] || 0),
+                    backgroundColor: solidC,
+                    borderColor: '#161b22',
+                    borderWidth: 3,
+                    weight: 2,
+                    hoverOffset: 6,
+                }
+            ]
+        },
+        options: {
+            cutout: '38%',
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: { color: '#8b949e', font: { size: 11 }, padding: 8, boxWidth: 11, boxHeight: 11 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.dataset.label} : ${(ctx.parsed || 0).toFixed(1)}%`
+                    }
+                }
+            }
+        }
+    });
+}
+
+function _renderObjectifsTable(actPct, catMap, totalVal) {
+    const keys = ['btc', 'eth', 'top10', 'top50', 'others'];
+
+    // Tableau synthèse catégorie
+    const tbody = document.getElementById('obj-breakdown-body');
+    if (tbody) {
+        tbody.innerHTML = keys.map(k => {
+            const tgt  = OBJECTIF_TARGETS[k];
+            const act  = actPct[k] || 0;
+            const diff = act - tgt;
+            const diffCls = Math.abs(diff) <= 5 ? 'pnl-pos' : Math.abs(diff) <= 15 ? 'gold' : 'pnl-neg';
+            const diffStr = (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%';
+            const val  = totalVal * act / 100;
+            const barTgt = Math.min(tgt, 100);
+            const barAct = Math.min(act, 100);
+            return `<tr>
+                <td style="padding:10px 10px">
+                    <span class="obj-dot" style="background:${OBJ_COLORS[k]}"></span>
+                    <strong>${OBJ_LABELS[k].split(' ')[0]}</strong>
+                    <div class="obj-progress-wrap" style="width:120px;display:inline-block;margin-left:8px;vertical-align:middle">
+                        <div class="obj-progress-tgt" style="width:${barTgt}%"></div>
+                        <div class="obj-progress-act" style="width:${barAct}%;background:${OBJ_COLORS[k]}"></div>
+                    </div>
+                </td>
+                <td style="text-align:center;color:var(--text-secondary)">${tgt.toFixed(0)}%</td>
+                <td style="text-align:center;font-weight:600">${act.toFixed(1)}%</td>
+                <td style="text-align:center"><span class="${diffCls}" style="font-weight:700">${diffStr}</span></td>
+                <td style="text-align:right">${fmtUSD(val)}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    // Tableau détail par crypto
+    const detBody = document.getElementById('obj-detail-body');
+    if (!detBody) return;
+    const entries = Object.entries(catMap).sort((a, b) => b[1].val - a[1].val);
+    const catTotals = {};
+    entries.forEach(([, info]) => { catTotals[info.cat] = (catTotals[info.cat] || 0) + info.val; });
+
+    detBody.innerHTML = entries.map(([sym, info]) => {
+        const pct    = totalVal > 0 ? info.val / totalVal * 100 : 0;
+        const catTot = catTotals[info.cat] || 0;
+        const catTgt = OBJECTIF_TARGETS[info.cat] || 0;
+        // Part de cette crypto dans sa catégorie, vs objectif catégorie
+        const catPct = totalVal > 0 ? catTot / totalVal * 100 : 0;
+        const diff   = catPct - catTgt;
+        const diffCls = Math.abs(diff) <= 5 ? 'pnl-pos' : Math.abs(diff) <= 15 ? 'gold' : 'pnl-neg';
+        return `<tr>
+            <td style="padding:9px 12px"><strong>${sym}</strong></td>
+            <td style="padding:9px 12px">
+                <span style="display:inline-flex;align-items:center;gap:5px">
+                    <span class="obj-dot" style="background:${OBJ_COLORS[info.cat]}"></span>
+                    <span style="font-size:12px">${OBJ_LABELS[info.cat]}</span>
+                </span>
+            </td>
+            <td style="padding:9px 12px;text-align:center;color:var(--text-secondary)">${info.rank ? '#' + info.rank : '—'}</td>
+            <td style="padding:9px 12px;text-align:right">${info.lp != null ? fmtUSD(info.val) : '<span style="color:var(--text-secondary)">~' + fmtUSD(info.inv) + '</span>'}</td>
+            <td style="padding:9px 12px;text-align:right;font-weight:600">${pct.toFixed(1)}%</td>
+            <td style="padding:9px 12px;text-align:right"><span class="${diffCls}" style="font-size:12px">${(diff >= 0 ? '+' : '') + diff.toFixed(1)}%</span></td>
+        </tr>`;
+    }).join('');
+}
+
+// ══════════════════════════════════════════
+// ANALYSE — BOUGIES BINANCE + MA + RSI
+// ══════════════════════════════════════════
+let _lwChart    = null;   // chart principal (bougies)
+let _lwCandle   = null;
+let _lwVolume   = null;
+let _lwMA9      = null;
+let _lwMA21     = null;
+let _lwMA50     = null;
+let _lwRsiChart = null;   // chart RSI séparé (synchronisé)
+let _lwRsiLine  = null;
+let _lwSyncing  = false;  // anti-boucle de synchronisation
+let _analyseSymbol   = 'BTC';
+let _analyseInterval = '1d';
+const _maVisible = { 9: true, 21: true, 50: true };
+
+// ── Helpers calcul ──
+function _calcSMA(closes, period) {
+    const out = [];
+    for (let i = period - 1; i < closes.length; i++) {
+        let s = 0;
+        for (let j = i - period + 1; j <= i; j++) s += closes[j];
+        out.push(s / period);
+    }
+    return out;
+}
+
+function _calcRSI(closes, period = 14) {
+    if (closes.length < period + 1) return [];
+    const out = [];
+    let avgG = 0, avgL = 0;
+    for (let i = 1; i <= period; i++) {
+        const d = closes[i] - closes[i - 1];
+        if (d > 0) avgG += d; else avgL -= d;
+    }
+    avgG /= period; avgL /= period;
+    out.push(avgL === 0 ? 100 : 100 - 100 / (1 + avgG / avgL));
+    for (let i = period + 1; i < closes.length; i++) {
+        const d = closes[i] - closes[i - 1];
+        avgG = (avgG * (period - 1) + (d > 0 ? d : 0)) / period;
+        avgL = (avgL * (period - 1) + (d < 0 ? -d : 0)) / period;
+        out.push(avgL === 0 ? 100 : 100 - 100 / (1 + avgG / avgL));
+    }
+    return out;
+}
+
+// ── Toggle Moyennes Mobiles ──
+function toggleMA(period) {
+    _maVisible[period] = !_maVisible[period];
+    const on  = _maVisible[period];
+    const btn = document.getElementById('ma-btn-' + period);
+    const colors = { 9: '#F39C12', 21: '#3498DB', 50: '#9B59B6' };
+    const c = colors[period];
+    if (btn) {
+        btn.style.color       = on ? c : 'var(--text-secondary)';
+        btn.style.borderColor = on ? c : 'var(--border)';
+        btn.style.background  = on ? c + '26' : 'var(--bg-tertiary)';
+    }
+    const series = { 9: _lwMA9, 21: _lwMA21, 50: _lwMA50 }[period];
+    if (series) series.applyOptions({ visible: on });
+}
+
+// ── Initialisation charts ──
+// autoSize: true = LW gère lui-même la largeur via son ResizeObserver interne.
+// Les containers sont en position:absolute dans un wrapper relatif à hauteur fixe,
+// donc le canvas ne provoque aucun reflow du parent → zéro boucle, même à zoom ≠ 100%.
+const _lwCfgBase = (showTime) => ({
+    autoSize: true,
+    layout: { background: { type: 'solid', color: '#161b22' }, textColor: '#8b949e' },
+    grid:   { vertLines: { color: 'rgba(48,54,61,.5)' }, horzLines: { color: 'rgba(48,54,61,.5)' } },
+    crosshair:       { mode: LightweightCharts.CrosshairMode.Normal },
+    rightPriceScale: { borderColor: '#30363d' },
+    timeScale:       { borderColor: '#30363d', timeVisible: showTime, secondsVisible: false },
+});
+
+function _initLWChart() {
+    const cMain = document.getElementById('analyse-chart-container');
+    const cRsi  = document.getElementById('analyse-rsi-container');
+    if (!cMain || !cRsi) return;
+    if (_lwChart) return;   // déjà créé — ne jamais recréer
+
+    // Vide les placeholders
+    cMain.innerHTML = '';
+    cRsi.innerHTML  = '';
+
+    // ── Chart principal (bougies + volume + MA) ──
+    // autoSize:true → LW observe le container (position:absolute, taille = wrapper relatif)
+    _lwChart = LightweightCharts.createChart(cMain, _lwCfgBase(true));
+
+    _lwCandle = _lwChart.addCandlestickSeries({
+        upColor: '#27AE60', downColor: '#C0392B',
+        borderVisible: false, wickUpColor: '#27AE60', wickDownColor: '#C0392B',
+    });
+    _lwVolume = _lwChart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: 'vol' });
+    _lwChart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.80, bottom: 0 } });
+
+    _lwMA9  = _lwChart.addLineSeries({ color: '#F39C12', lineWidth: 1,   crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, title: 'MA9'  });
+    _lwMA21 = _lwChart.addLineSeries({ color: '#3498DB', lineWidth: 1,   crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, title: 'MA21' });
+    _lwMA50 = _lwChart.addLineSeries({ color: '#9B59B6', lineWidth: 1.5, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, title: 'MA50' });
+
+    // ── Chart RSI (instance séparée, synchronisée) ──
+    _lwRsiChart = LightweightCharts.createChart(cRsi, {
+        ..._lwCfgBase(false),
+        rightPriceScale: { borderColor: '#30363d', scaleMargins: { top: 0.1, bottom: 0.1 } },
+    });
+    _lwRsiLine = _lwRsiChart.addLineSeries({
+        color: '#C9963E', lineWidth: 1.5,
+        crosshairMarkerVisible: true, lastValueVisible: true, priceLineVisible: false,
+        priceFormat: { type: 'custom', formatter: v => v.toFixed(1) },
+        title: 'RSI',
+    });
+    [{ p: 70, c: 'rgba(192,57,43,.65)' }, { p: 50, c: 'rgba(139,148,158,.35)' }, { p: 30, c: 'rgba(39,174,96,.65)' }]
+        .forEach(({ p, c }) => _lwRsiLine.createPriceLine({ price: p, color: c, lineWidth: 1, lineStyle: 2, axisLabelVisible: p !== 50, title: p !== 50 ? String(p) : '' }));
+
+    // ── Synchronisation des axes temporels ──
+    _lwChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+        if (_lwSyncing || !range || !_lwRsiChart) return;
+        _lwSyncing = true;
+        _lwRsiChart.timeScale().setVisibleLogicalRange(range);
+        _lwSyncing = false;
+    });
+    _lwRsiChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+        if (_lwSyncing || !range || !_lwChart) return;
+        _lwSyncing = true;
+        _lwChart.timeScale().setVisibleLogicalRange(range);
+        _lwSyncing = false;
+    });
+    // Pas de window.addEventListener('resize') : autoSize:true s'en charge nativement.
+}
+
+async function loadAnalyse() {
+    const input = document.getElementById('analyse-symbol');
+    const sym   = (input?.value || _analyseSymbol).trim().toUpperCase().replace(/USDT$/, '');
+    if (!sym) { notify('⚠️ Saisis un symbole', 'error'); return; }
+    _analyseSymbol = sym;
+    if (input) input.value = sym;
+
+    const statusEl = document.getElementById('analyse-status');
+    if (statusEl) statusEl.innerHTML = '<span class="spin"></span>';
+
+    // Affiche le panneau RSI avant l'init pour que les tailles soient connues
+    const rsiWrap = document.getElementById('analyse-rsi-wrap');
+    if (rsiWrap) rsiWrap.style.display = '';
+
+    _initLWChart();
+
+    try {
+        const pair = sym + 'USDT';
+        const url  = `https://api.binance.com/api/v3/klines?symbol=${pair}&interval=${_analyseInterval}&limit=300`;
+        const res  = await fetch(url);
+        if (!res.ok) throw new Error(`Paire ${pair} introuvable sur Binance`);
+        const klines = await res.json();
+        if (!Array.isArray(klines) || !klines.length) throw new Error('Aucune donnée reçue');
+
+        const candles = klines.map(k => ({
+            time: Math.floor(k[0] / 1000),
+            open: parseFloat(k[1]), high: parseFloat(k[2]),
+            low:  parseFloat(k[3]), close: parseFloat(k[4]),
+        }));
+        const volumes = klines.map(k => ({
+            time:  Math.floor(k[0] / 1000),
+            value: parseFloat(k[5]),
+            color: parseFloat(k[4]) >= parseFloat(k[1]) ? 'rgba(39,174,96,.45)' : 'rgba(192,57,43,.45)',
+        }));
+        const closes = candles.map(c => c.close);
+        const times  = candles.map(c => c.time);
+
+        // Bougies + Volume
+        _lwCandle.setData(candles);
+        _lwVolume.setData(volumes);
+
+        // Moyennes Mobiles
+        [[_lwMA9, 9], [_lwMA21, 21], [_lwMA50, 50]].forEach(([s, p]) => {
+            if (!s) return;
+            const sma    = _calcSMA(closes, p);
+            const offset = closes.length - sma.length;
+            s.setData(sma.map((v, i) => ({ time: times[offset + i], value: v })));
+            s.applyOptions({ visible: _maVisible[p] });
+        });
+
+        // RSI 14
+        if (_lwRsiLine) {
+            const rsiVals = _calcRSI(closes, 14);
+            const offset  = closes.length - rsiVals.length;
+            _lwRsiLine.setData(rsiVals.map((v, i) => ({ time: times[offset + i], value: v })));
+            // Affiche la dernière valeur RSI dans le label
+            const lastRsi = rsiVals[rsiVals.length - 1];
+            const rsiEl   = document.getElementById('analyse-rsi-val');
+            if (rsiEl) {
+                const rsiCls = lastRsi >= 70 ? 'var(--red)' : lastRsi <= 30 ? 'var(--green)' : 'var(--gold)';
+                rsiEl.style.color = rsiCls;
+                rsiEl.textContent = lastRsi.toFixed(1) + (lastRsi >= 70 ? ' — Surachat ⚠️' : lastRsi <= 30 ? ' — Survente 🔔' : '');
+            }
+        }
+
+        _lwChart.timeScale().fitContent();
+
+        // Header
+        const last   = candles[candles.length - 1];
+        const chgPct = (last.close - candles[0].open) / candles[0].open * 100;
+        const chgSign = chgPct >= 0 ? '+' : '';
+        document.getElementById('analyse-title').innerHTML =
+            `<span style="color:var(--gold)">${sym}</span><span style="color:var(--text-secondary);font-size:13px;font-weight:400">/USDT</span>`;
+        document.getElementById('analyse-meta').innerHTML =
+            `Dernier : <strong style="color:var(--text-primary)">$${fmtNum(last.close)}</strong>
+             &nbsp;·&nbsp; H : <span style="color:var(--green)">$${fmtNum(last.high)}</span>
+             &nbsp;·&nbsp; B : <span style="color:var(--red)">$${fmtNum(last.low)}</span>
+             &nbsp;·&nbsp; Perf. : <span class="${chgPct >= 0 ? 'pnl-pos' : 'pnl-neg'}">${chgSign}${chgPct.toFixed(2)}%</span>`;
+
+        // Analyse technique automatique
+        const rsiVals = _calcRSI(closes, 14);
+        _buildInsight(sym, candles, closes, rsiVals);
+
+        if (statusEl) statusEl.innerHTML = '';
+        _updateAnalyseDatalist();
+        notify(`✅ ${pair} — ${candles.length} bougies`, 'success');
+    } catch(e) {
+        if (statusEl) statusEl.innerHTML = `<span style="color:var(--red);font-size:12px">❌ ${e.message}</span>`;
+        notify('❌ ' + e.message, 'error');
+    }
+}
+
+// ── Analyse technique automatique ──────────────────────────────────────────
+function _buildInsight(sym, candles, closes, rsiVals) {
+    const n    = closes.length;
+    const last = closes[n - 1];
+
+    // ── Moyennes mobiles (dernière valeur) ──
+    const sma = p => {
+        if (n < p) return null;
+        let s = 0; for (let i = n - p; i < n; i++) s += closes[i]; return s / p;
+    };
+    const ma9  = sma(9);
+    const ma21 = sma(21);
+    const ma50 = sma(50);
+    const lastRsi = rsiVals.length ? rsiVals[rsiVals.length - 1] : null;
+
+    // ── Score de tendance ──
+    let score = 0;
+    if (ma9  && last > ma9)   score += 1;
+    if (ma21 && last > ma21)  score += 1;
+    if (ma50 && last > ma50)  score += 2;
+    if (ma9  && ma21 && ma9  > ma21) score += 1;
+    if (ma21 && ma50 && ma21 > ma50) score += 1;
+    if (lastRsi !== null && lastRsi > 50) score += 1;
+
+    const tendance = score >= 6 ? 'HAUSSE FORTE'
+                   : score >= 4 ? 'HAUSSE'
+                   : score >= 3 ? 'NEUTRE'
+                   : score >= 1 ? 'BAISSE'
+                   : 'BAISSE FORTE';
+    const tdColor = tendance.includes('HAUSSE') ? 'var(--green)'
+                  : tendance === 'NEUTRE'        ? 'var(--gold)'
+                  : 'var(--red)';
+    const tdBg    = tendance.includes('HAUSSE') ? 'rgba(39,174,96,.15)'
+                  : tendance === 'NEUTRE'        ? 'rgba(201,150,62,.15)'
+                  : 'rgba(192,57,43,.15)';
+
+    // ── Supports / Résistances (pivots sur 150 dernières bougies) ──
+    const window2 = 3; // bougies de chaque côté pour confirmer un pivot
+    const slice   = candles.slice(-150);
+    const supports = [], resistances = [];
+
+    for (let i = window2; i < slice.length - window2; i++) {
+        const c = slice[i];
+        let isLow = true, isHigh = true;
+        for (let j = 1; j <= window2; j++) {
+            if (slice[i - j].low  <= c.low)  isLow  = false;
+            if (slice[i + j].low  <= c.low)  isLow  = false;
+            if (slice[i - j].high >= c.high) isHigh = false;
+            if (slice[i + j].high >= c.high) isHigh = false;
+        }
+        if (isLow  && c.low  < last) supports.push(c.low);
+        if (isHigh && c.high > last) resistances.push(c.high);
+    }
+
+    // Clustering : fusionne les niveaux à moins de 1.5% d'écart
+    const cluster = (arr, dir) => {
+        const sorted = [...arr].sort((a, b) => dir === 'sup' ? b - a : a - b);
+        const out = [];
+        for (const v of sorted) {
+            if (!out.length || Math.abs(v - out[out.length - 1]) / out[out.length - 1] > 0.015)
+                out.push(v);
+        }
+        return out.slice(0, 3); // max 3 niveaux
+    };
+    const supLevels = cluster(supports,   'sup');   // les plus proches sous le prix
+    const resLevels = cluster(resistances,'res');   // les plus proches au-dessus
+
+    // ── Texte narratif ──
+    const fP = v => '$' + fmtNum(v);
+    let text = '';
+
+    // Position par rapport aux MAs
+    if (ma50 && ma21 && ma9) {
+        if (last > ma9 && last > ma21 && last > ma50) {
+            if (ma9 > ma21 && ma21 > ma50)
+                text += `${sym} est en tendance haussière structurée : le prix évolue au-dessus des MA9 (${fP(ma9)}), MA21 (${fP(ma21)}) et MA50 (${fP(ma50)}), toutes alignées en ordre bullish. `;
+            else
+                text += `${sym} cote au-dessus de toutes ses moyennes mobiles (MA9 ${fP(ma9)} · MA21 ${fP(ma21)} · MA50 ${fP(ma50)}), mais l'alignement n'est pas encore parfait — surveille un possible retracement. `;
+        } else if (last < ma9 && last < ma21 && last < ma50) {
+            if (ma9 < ma21 && ma21 < ma50)
+                text += `${sym} est sous pression baissière : le prix est en dessous des MA9 (${fP(ma9)}), MA21 (${fP(ma21)}) et MA50 (${fP(ma50)}), toutes orientées à la baisse. `;
+            else
+                text += `${sym} évolue sous ses principales moyennes mobiles, signal de faiblesse à court terme. MA50 à ${fP(ma50)} constitue une résistance dynamique clé. `;
+        } else {
+            const above = [], below = [];
+            if (last > ma9) above.push(`MA9 ${fP(ma9)}`); else below.push(`MA9 ${fP(ma9)}`);
+            if (last > ma21) above.push(`MA21 ${fP(ma21)}`); else below.push(`MA21 ${fP(ma21)}`);
+            if (last > ma50) above.push(`MA50 ${fP(ma50)}`); else below.push(`MA50 ${fP(ma50)}`);
+            text += `${sym} est en phase de consolidation : au-dessus de ${above.join(', ')} mais sous ${below.join(', ')}. `;
+        }
+    }
+
+    // RSI
+    if (lastRsi !== null) {
+        if (lastRsi >= 70)
+            text += `Le RSI à ${lastRsi.toFixed(1)} signale une zone de surachat — une correction ou consolidation est possible. `;
+        else if (lastRsi <= 30)
+            text += `Le RSI à ${lastRsi.toFixed(1)} indique une zone de survente, potentielle opportunité d'entrée si un support tient. `;
+        else if (lastRsi > 55)
+            text += `Le RSI à ${lastRsi.toFixed(1)} est haussier avec encore de la marge avant surachat. `;
+        else if (lastRsi < 45)
+            text += `Le RSI à ${lastRsi.toFixed(1)} penche baissier — la pression vendeuse domine à court terme. `;
+        else
+            text += `Le RSI à ${lastRsi.toFixed(1)} est neutre, sans signal fort dans un sens ou dans l'autre. `;
+    }
+
+    // Supports / résistances proches
+    if (supLevels.length)
+        text += `Le prochain support majeur à surveiller se situe autour de ${fP(supLevels[0])}${supLevels[1] ? `, puis ${fP(supLevels[1])}` : ''}. `;
+    if (resLevels.length)
+        text += `La résistance la plus proche est à ${fP(resLevels[0])}${resLevels[1] ? ` — un passage au-dessus ouvrirait la voie vers ${fP(resLevels[1])}` : ''}. `;
+
+    // ── Mise à jour du DOM ──
+    const insightEl = document.getElementById('analyse-insight');
+    if (insightEl) insightEl.style.display = '';
+
+    const badge = document.getElementById('anlz-trend-badge');
+    if (badge) {
+        badge.textContent = tendance;
+        badge.style.color      = tdColor;
+        badge.style.background = tdBg;
+        badge.style.border     = `1px solid ${tdColor}`;
+    }
+
+    const textEl = document.getElementById('anlz-text');
+    if (textEl) textEl.textContent = text || 'Données insuffisantes pour générer une analyse.';
+
+    const renderLevels = (id, levels, color) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (!levels.length) { el.innerHTML = '<span style="font-size:12px;color:var(--text-secondary)">Aucun trouvé</span>'; return; }
+        el.innerHTML = levels.map((v, i) =>
+            `<div style="display:flex;align-items:center;justify-content:space-between;font-size:13px">
+                <span style="color:var(--text-secondary);font-size:11px">${i === 0 ? '▸ Proche' : i === 1 ? '▸ Moyen' : '▸ Fort'}</span>
+                <strong style="color:${color}">${fP(v)}</strong>
+                <span style="font-size:10px;color:var(--text-secondary)">${((Math.abs(v - last) / last) * 100).toFixed(1)}%</span>
+            </div>`
+        ).join('');
+    };
+    renderLevels('anlz-supports',    supLevels, 'var(--green)');
+    renderLevels('anlz-resistances', resLevels, 'var(--red)');
+}
+
+function setAnalyseInterval(interval) {
+    _analyseInterval = interval;
+    ['1h','4h','1d','1w','1M'].forEach(i =>
+        document.getElementById('ai-' + i)?.classList.toggle('active', i === interval)
+    );
+    loadAnalyse();
+}
+
+function _updateAnalyseDatalist() {
+    const dl = document.getElementById('analyse-symbols-list');
+    if (!dl) return;
+    const syms = new Set();
+    [..._pfData.dcaRaw, ..._ddData.rawTxns].forEach(r => {
+        const s = (r.crypto || '').toUpperCase();
+        if (s && s !== 'EUROS') syms.add(s);
+    });
+    // Ajoute quelques valeurs communes toujours présentes
+    ['BTC','ETH','BNB','SOL','XRP','ADA','DOGE'].forEach(s => syms.add(s));
+    dl.innerHTML = [...syms].sort().map(s => `<option value="${s}">`).join('');
+}
+
 // ── Init ──
+tblInit('pf',        COLS_PF,           'pf-tb',         'thead-pf');
+tblInit('dd',        COLS_DD,           'dd-tb',         'thead-dd');
+tblInit('dh',        COLS_DH,           'dh-tb',         'thead-dh');
+tblInit('td-open',   COLS_DASH_TRADING, 'td-tb-open',    'thead-td-open');
+tblInit('tpos',      COLS_POS_OPEN,     'tb-tpos',       'thead-tpos');
+tblInit('tpos-hist', COLS_POS_HIST,     'tb-tpos-hist',  'thead-tpos-hist');
 nav('portfolio');
-// Auto-refresh toutes les 4 heures
 setInterval(loadPortfolio, 4 * 60 * 60 * 1000);
 </script>
 </body>
